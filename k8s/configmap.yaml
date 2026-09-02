@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-oportunidades-config
+  namespace: portal-oportunidades
+data:
+  PORT: '3001'
+  STORAGE_BUCKET: opp-documents
+  UPLOAD_MAX_MB: '25'
+  UPLOAD_ALLOWED_EXT: pdf,docx,xlsx,pptx,png,jpg,jpeg,zip
+  CORS_ORIGINS: https://oportunidades.xpto.com.br
+---
+# Os segredos NÃO vivem no repositório. Criar por ambiente:
+# kubectl -n portal-oportunidades create secret generic portal-oportunidades-secrets \
+#   --from-literal=DATABASE_URL=... \
+#   --from-literal=SUPABASE_URL=... \
+#   --from-literal=SUPABASE_JWT_SECRET=... \
+#   --from-literal=SUPABASE_SERVICE_ROLE_KEY=... \
+#   --from-literal=SMTP_HOST=... --from-literal=SMTP_USER=... --from-literal=SMTP_PASS=...
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: portal-oportunidades

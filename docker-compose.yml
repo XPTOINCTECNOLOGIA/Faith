@@ -1,0 +1,52 @@
+# Ambiente local completo do Portal de Oportunidades XPTO + SERPRO.
+# O Postgres local recebe o bootstrap mínimo da base compartilhada
+# (db/local-init.sql) e em seguida a migration oficial 0073.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: portal
+    ports:
+      - '55432:5432'
+    volumes:
+      - ./db/local-init.sql:/docker-entrypoint-initdb.d/01-local-init.sql:ro
+      - ../supabase/migrations/0073_portal_oportunidades.sql:/docker-entrypoint-initdb.d/02-portal.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d portal']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      PORT: '3001'
+      DATABASE_URL: postgres://postgres:postgres@db:5432/portal
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-devsecret}
+      SUPABASE_URL: ${SUPABASE_URL:-http://localhost:54321}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      STORAGE_BUCKET: opp-documents
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+    ports:
+      - '3001:3001'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:54321}
+        VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-anon-key-dev}
+        VITE_API_URL: ''
+    ports:
+      - '8080:80'
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
