@@ -208,11 +208,11 @@ export default function DashboardPage() {
                   </Typography>
                   <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                     <Typography variant="body2" fontWeight={600} noWrap>
-                      {r.objeto}
+                      {r.orgao_responsavel !== 'Não informado' ? r.orgao_responsavel : r.objeto}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                      {r.orgao_responsavel !== 'Não informado' ? `${r.objeto} · ` : ''}
                       {r.esfera === 'Municipal' ? `${r.cidade}/${r.uf}` : r.esfera === 'Estadual' ? r.uf : r.pais}
-                      {r.orgao_responsavel !== 'Não informado' ? ` · ${r.orgao_responsavel}` : ''}
                     </Typography>
                   </Box>
                   <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>

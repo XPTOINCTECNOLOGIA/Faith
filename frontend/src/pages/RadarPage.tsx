@@ -85,6 +85,15 @@ function localDe(r: RadarOpportunity): string {
   return `${r.cidade}/${r.uf}`;
 }
 
+/** Ator principal da linha: o órgão responsável (a oportunidade é o 2º nível). */
+function tituloDe(r: RadarOpportunity): string {
+  return informado(r.orgao_responsavel) ? r.orgao_responsavel : r.objeto;
+}
+
+function subtituloDe(r: RadarOpportunity): string {
+  return informado(r.orgao_responsavel) ? r.objeto : 'Órgão a definir';
+}
+
 function Bandeira({ item, size = 22 }: { item: RadarOpportunity; size?: number }) {
   const isEmoji = /\p{Regional_Indicator}/u.test(item.icone_bandeira);
   if (isEmoji) {
@@ -169,7 +178,7 @@ export default function RadarPage() {
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
     return [...items].sort((a, b) => {
-      if (sortBy === 'objeto') return a.objeto.localeCompare(b.objeto) * dir;
+      if (sortBy === 'objeto') return tituloDe(a).localeCompare(tituloDe(b)) * dir;
       if (sortBy === 'health') return (healthScore(a) - healthScore(b)) * dir;
       return (radarParseBRL(a.valor_estimado_total_contrato) - radarParseBRL(b.valor_estimado_total_contrato)) * dir;
     });
@@ -358,12 +367,15 @@ export default function RadarPage() {
                     >
                       <Bandeira item={r} />
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Typography fontWeight={600} noWrap>
-                          {r.objeto}
+                        <Typography fontWeight={700} noWrap>
+                          {tituloDe(r)}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                          {localDe(r)}
-                          {informado(r.orgao_responsavel) ? ` · ${r.orgao_responsavel}` : ''}
+                        <Typography variant="body2" noWrap sx={{ display: 'block', color: 'text.primary' }}>
+                          {subtituloDe(r)}
+                          <Typography component="span" variant="caption" color="text.secondary">
+                            {'  ·  '}
+                            {localDe(r)}
+                          </Typography>
                         </Typography>
                       </Box>
                       <Typography
@@ -394,7 +406,7 @@ export default function RadarPage() {
               <TableRow>
                 <TableCell>
                   <TableSortLabel active={sortBy === 'objeto'} direction={sortDir} onClick={() => sortHandler('objeto')}>
-                    Oportunidade
+                    Órgão / Oportunidade
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>Esfera</TableCell>
@@ -423,15 +435,15 @@ export default function RadarPage() {
                 const ht = healthTone(hs);
                 return (
                   <TableRow key={r.id} hover onClick={() => setSelected(r)} sx={{ cursor: 'pointer' }}>
-                    <TableCell sx={{ maxWidth: 300 }}>
+                    <TableCell sx={{ maxWidth: 320 }}>
                       <Stack direction="row" spacing={1.25} alignItems="center">
                         <Bandeira item={r} size={18} />
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {r.objeto}
+                          <Typography variant="body2" fontWeight={700} noWrap>
+                            {tituloDe(r)}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                            {informado(r.orgao_responsavel) ? r.orgao_responsavel : '—'}
+                          <Typography variant="caption" noWrap sx={{ display: 'block', color: 'text.secondary' }}>
+                            {subtituloDe(r)}
                           </Typography>
                         </Box>
                       </Stack>
@@ -472,10 +484,12 @@ export default function RadarPage() {
             <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 0.5 }}>
               <Bandeira item={selected} size={26} />
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                <Typography variant="h5">{selected.objeto}</Typography>
+                <Typography variant="h5">{tituloDe(selected)}</Typography>
+                <Typography variant="subtitle1" sx={{ mt: 0.25 }}>
+                  {subtituloDe(selected)}
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {localDe(selected)}
-                  {informado(selected.orgao_responsavel) ? ` · ${selected.orgao_responsavel}` : ''}
                 </Typography>
               </Box>
               <IconButton size="small" onClick={() => setSelected(null)} aria-label="Fechar">
