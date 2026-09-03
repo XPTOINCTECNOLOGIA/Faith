@@ -14,6 +14,7 @@ import LoginPage from './pages/LoginPage';
 import NewOpportunityPage from './pages/NewOpportunityPage';
 import OpportunityPage from './pages/OpportunityPage';
 import PartnersPage from './pages/PartnersPage';
+import RadarPage from './pages/RadarPage';
 
 /**
  * Design system "Executivo" (dark): tokens semânticos —
@@ -120,6 +121,7 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<KanbanPage />} />
+        <Route path="/radar" element={<RadarPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/oportunidades/nova" element={<NewOpportunityPage />} />
         <Route path="/oportunidades/:id" element={<OpportunityPage />} />

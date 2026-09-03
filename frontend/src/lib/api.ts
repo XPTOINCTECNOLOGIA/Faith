@@ -720,6 +720,17 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       }));
     }
 
+    if (p === '/radar') {
+      let q = supabase.from('opp_radar').select('*');
+      if (qp.get('esfera')) q = q.eq('esfera', qp.get('esfera')!);
+      if (qp.get('uf')) q = q.eq('uf', qp.get('uf')!);
+      const s = qp.get('search');
+      if (s) q = q.or(`objeto.ilike.%${s}%,orgao_responsavel.ilike.%${s}%,pais.ilike.%${s}%,cidade.ilike.%${s}%`);
+      const { data, error } = await q.order('id');
+      if (error) fail(error);
+      return (data ?? []).map((r: any) => ({ ...r, id: Number(r.id) }));
+    }
+
     if (p === '/dashboard/summary') return dash.summary(qp);
     if (p === '/dashboard/by-stage') return dash.byStage(qp);
     if (p === '/dashboard/by-source') return dash.bySource(qp);
@@ -768,6 +779,22 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (error) fail(error);
       await audit([{ entity: 'partner', entityId: Number(data.id), action: 'create' }]);
       return { id: Number(data.id), ...body };
+    }
+
+    if (p === '/radar') {
+      const my = await me();
+      // As regras de modelagem (R3–R9) são normalizadas pelo trigger do banco.
+      const { data, error } = await supabase.from('opp_radar').insert({
+        abrangencia: body.abrangencia, esfera: body.esfera, pais: body.pais,
+        uf: body.uf, cidade: body.cidade, objeto: body.objeto,
+        orgao_responsavel: body.orgao_responsavel, valor_estimado_total_contrato: body.valor_estimado_total_contrato,
+        periodo: body.periodo, tempo_contrato: body.tempo_contrato,
+        responsavel_serpro: body.responsavel_serpro, hunter: body.hunter,
+        parceiro: body.parceiro, nome_parceiro: body.nome_parceiro,
+        created_by: my.id,
+      }).select('*').single();
+      if (error) fail(error);
+      return { ...data, id: Number(data.id) };
     }
 
     if (p === '/focal-points') {
@@ -825,6 +852,18 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       return undefined;
     }
     if ((x = m(/^\/opportunities\/(\d+)$/))) return updateOpportunity(Number(x[1]), body);
+    if ((x = m(/^\/radar\/(\d+)$/))) {
+      const patch: Record<string, unknown> = {};
+      for (const k of ['abrangencia', 'esfera', 'pais', 'uf', 'cidade', 'objeto', 'orgao_responsavel',
+        'valor_estimado_total_contrato', 'periodo', 'tempo_contrato', 'responsavel_serpro',
+        'hunter', 'parceiro', 'nome_parceiro'] as const) {
+        if (k in body) patch[k] = body[k];
+      }
+      const { data, error } = await supabase.from('opp_radar').update(patch)
+        .eq('id', Number(x[1])).select('*').single();
+      if (error) fail(error);
+      return { ...data, id: Number(data.id) };
+    }
     if ((x = m(/^\/focal-points\/(\d+)$/))) {
       const fpId = Number(x[1]);
       const patch: Record<string, unknown> = {};
@@ -897,6 +936,12 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       const { error } = await supabase.from('opp_opportunity_focal_points').delete().eq('id', Number(x[1]));
       if (error) fail(error);
       // auditoria via trigger (RN-024)
+      return undefined;
+    }
+    if ((x = m(/^\/radar\/(\d+)$/))) {
+      const { error } = await supabase.from('opp_radar').delete().eq('id', Number(x[1]));
+      if (error) fail(error);
+      // auditoria via trigger opp_radar_audit_tg
       return undefined;
     }
   }

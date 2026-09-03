@@ -1,5 +1,17 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 0.3.0 — 2026-09-03
+
+- **Radar de Oportunidades** (menu "Radar"): base padronizada de prospecção
+  comercial com os campos oficiais do negócio. Regras de modelagem aplicadas
+  automaticamente pelo banco (migration 0076 do TETELESTAI): valor mensal
+  sempre calculado (R5), hunter SERPRO força parceiro N/A (R6), bandeira
+  automática por país/estado/município (R7), moeda pt-BR (R8), "Não informado"
+  para dados ausentes (R9), N/A por esfera (R3) e Nacional = Brasil (R4).
+- KPIs do radar (quantidade, valor total, receita mensal estimada), filtros
+  por esfera/UF/busca, criação/edição com pré-visualização do valor mensal e
+  remoção auditada. Carga inicial: 14 oportunidades da base oficial.
+
 ## 0.2.0 — 2026-09-03
 
 - **Pontos Focais SERPRO**: nova área de cadastro (menu "Pontos Focais") com papel

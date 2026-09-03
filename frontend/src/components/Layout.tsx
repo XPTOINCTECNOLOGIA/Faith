@@ -27,6 +27,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation } from 'react-router-dom';
@@ -67,6 +68,7 @@ export default function Layout() {
       permission: 'opp.view',
       badge: openCount.data?.total,
     },
+    { to: '/radar', label: 'Radar', icon: <TravelExploreIcon />, permission: 'opp.view' },
     { to: '/dashboard', label: 'Dashboard', icon: <AssessmentIcon />, permission: 'opp.dashboard.view' },
     { to: '/clientes', label: 'Clientes', icon: <BusinessIcon />, permission: 'opp.view' },
     { to: '/parceiros', label: 'Parceiros', icon: <HandshakeIcon />, permission: 'opp.view' },
@@ -228,7 +230,7 @@ export default function Layout() {
         <Divider />
         <Stack spacing={0.5} sx={{ p: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            FAITH · Portal de Oportunidades v0.2.0
+            FAITH · Portal de Oportunidades v0.3.0
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Sessão única com o Tetelestai (SSO)

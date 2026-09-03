@@ -166,6 +166,43 @@ export interface OpportunityFocalPoint {
   focalPoint: FocalPoint;
 }
 
+export interface RadarOpportunity {
+  id: number;
+  abrangencia: 'Nacional' | 'Internacional';
+  esfera: 'Federal' | 'Estadual' | 'Municipal';
+  pais: string;
+  uf: string;
+  cidade: string;
+  icone_bandeira: string;
+  objeto: string;
+  orgao_responsavel: string;
+  valor_estimado_total_contrato: string;
+  periodo: string;
+  tempo_contrato: string;
+  valor_mensal: string;
+  responsavel_serpro: string;
+  hunter: string;
+  parceiro: string;
+  nome_parceiro: string;
+}
+
+/** R5 — espelho do cálculo do banco, para pré-visualização no formulário. */
+export function radarValorMensal(total: string, tempoContrato: string): string {
+  const digits = total.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+  const v = Number(digits);
+  const m = tempoContrato.match(/(\d+)/);
+  if (!digits || !Number.isFinite(v) || v <= 0 || !m) return 'Não informado';
+  const meses = /ano/i.test(tempoContrato) ? Number(m[1]) * 12 : Number(m[1]);
+  if (!meses) return 'Não informado';
+  return (v / meses).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+}
+
+export function radarParseBRL(total: string): number {
+  const digits = total.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+  const v = Number(digits);
+  return Number.isFinite(v) ? v : 0;
+}
+
 export const FOCAL_PAPEL_LABEL: Record<string, string> = {
   responsavel_departamento: 'Responsável de Departamento',
   divisao_publica: 'Divisão Pública da Região',
