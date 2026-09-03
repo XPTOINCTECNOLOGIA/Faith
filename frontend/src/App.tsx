@@ -14,14 +14,69 @@ import NewOpportunityPage from './pages/NewOpportunityPage';
 import OpportunityPage from './pages/OpportunityPage';
 import PartnersPage from './pages/PartnersPage';
 
+/**
+ * Design system "Executivo" (dark): tokens semânticos —
+ * bg-primary #101828 (sidebar/topbar) · bg-surface-dim #0b1323 (canvas) ·
+ * bg-surface-card #141b2c · bg-surface-elevated #1e2638 (modais/popovers) ·
+ * accent #60cfe2 / hover #45b7cb · texto #f4f6fa / muted #8c9bb0 ·
+ * bordas #2b4469 · estados: sucesso #10b981, atenção #f59e0b,
+ * erro #ef4444, info #3b82f6.
+ */
 const theme = createTheme(
   {
     palette: {
-      primary: { main: '#123a6b' },
-      secondary: { main: '#00695c' },
-      background: { default: '#f4f5f7' },
+      mode: 'dark',
+      primary: { main: '#60cfe2', dark: '#45b7cb', contrastText: '#0b1323' },
+      secondary: { main: '#8c9bb0' },
+      background: { default: '#0b1323', paper: '#141b2c' },
+      text: { primary: '#f4f6fa', secondary: '#8c9bb0' },
+      divider: '#2b4469',
+      success: { main: '#10b981' },
+      warning: { main: '#f59e0b' },
+      error: { main: '#ef4444' },
+      info: { main: '#3b82f6' },
     },
-    shape: { borderRadius: 8 },
+    shape: { borderRadius: 10 },
+    typography: {
+      fontFamily: '"Manrope", "Inter", system-ui, sans-serif',
+      h5: { fontWeight: 800 },
+      h6: { fontWeight: 700 },
+      subtitle2: { fontWeight: 700 },
+      button: { textTransform: 'none', fontWeight: 700 },
+    },
+    components: {
+      MuiAppBar: {
+        styleOverrides: {
+          root: { backgroundColor: '#101828', backgroundImage: 'none', borderBottom: '1px solid #2b4469' },
+        },
+      },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: { backgroundColor: '#101828', backgroundImage: 'none', borderRight: '1px solid #2b4469' },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: { backgroundColor: '#141b2c', backgroundImage: 'none', border: '1px solid #2b4469' },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: { backgroundColor: '#1e2638', backgroundImage: 'none', border: '1px solid #2b4469' },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: { backgroundColor: '#1e2638', backgroundImage: 'none', border: '1px solid #2b4469' },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: { root: { borderColor: '#2b4469' } },
+      },
+      MuiChip: {
+        styleOverrides: { root: { fontWeight: 600 } },
+      },
+    },
   },
   ptBR,
 );

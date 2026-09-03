@@ -4,6 +4,8 @@ import {
   Avatar,
   Badge,
   Box,
+  Button,
+  Chip,
   Divider,
   Drawer,
   IconButton,
@@ -13,6 +15,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -20,6 +23,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import BusinessIcon from '@mui/icons-material/Business';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import HandshakeIcon from '@mui/icons-material/Handshake';
+import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
@@ -27,18 +31,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api } from '../lib/api';
-import type { Notification } from '../lib/types';
+import type { Notification, Opportunity, Page } from '../lib/types';
 
-const DRAWER_WIDTH = 232;
-
-const NAV = [
-  { to: '/', label: 'Pipeline', icon: <ViewKanbanIcon />, permission: 'opp.view' },
-  { to: '/dashboard', label: 'Dashboard', icon: <AssessmentIcon />, permission: 'opp.dashboard.view' },
-  { to: '/clientes', label: 'Clientes', icon: <BusinessIcon />, permission: 'opp.view' },
-  { to: '/parceiros', label: 'Parceiros', icon: <HandshakeIcon />, permission: 'opp.view' },
-  { to: '/auditoria', label: 'Auditoria', icon: <FactCheckIcon />, permission: 'opp.audit.view' },
-  { to: '/configuracao', label: 'Configuração', icon: <SettingsIcon />, permission: 'opp.config' },
-];
+const DRAWER_WIDTH = 248;
 
 export default function Layout() {
   const { me, can, signOut } = useAuth();
@@ -53,23 +48,90 @@ export default function Layout() {
     refetchInterval: 60_000,
   });
 
+  const openCount = useQuery({
+    queryKey: ['open-count'],
+    queryFn: () => api.get<Page<Opportunity>>('/opportunities?status=aberta&pageSize=1'),
+    refetchInterval: 60_000,
+    enabled: can('opp.view'),
+  });
+
   const unread = notifications.data?.length ?? 0;
+
+  const NAV = [
+    {
+      to: '/',
+      label: 'Pipeline',
+      icon: <ViewKanbanIcon />,
+      permission: 'opp.view',
+      badge: openCount.data?.total,
+    },
+    { to: '/dashboard', label: 'Dashboard', icon: <AssessmentIcon />, permission: 'opp.dashboard.view' },
+    { to: '/clientes', label: 'Clientes', icon: <BusinessIcon />, permission: 'opp.view' },
+    { to: '/parceiros', label: 'Parceiros', icon: <HandshakeIcon />, permission: 'opp.view' },
+    { to: '/auditoria', label: 'Auditoria', icon: <FactCheckIcon />, permission: 'opp.audit.view' },
+    { to: '/configuracao', label: 'Configuração', icon: <SettingsIcon />, permission: 'opp.config' },
+  ];
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
-            Portal de Oportunidades <Typography component="span" sx={{ opacity: 0.7 }}>XPTO + SERPRO</Typography>
+      <AppBar position="fixed" elevation={0} sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
+        <Toolbar sx={{ gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: 0.2 }}>
+            Portal de Oportunidades{' '}
+            <Typography component="span" sx={{ color: 'primary.main', fontWeight: 700 }}>
+              XPTO + SERPRO
+            </Typography>
           </Typography>
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          <Chip
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'divider', color: 'text.secondary' }}
+            label={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'success.main',
+                    '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } },
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+                <span>ONLINE · SSO CORPORATIVO</span>
+              </Stack>
+            }
+          />
+
           <IconButton color="inherit" onClick={(e) => setNotifAnchor(e.currentTarget)} aria-label="Notificações">
             <Badge badgeContent={unread} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
-          <IconButton onClick={(e) => setUserAnchor(e.currentTarget)} sx={{ ml: 1 }} aria-label="Conta">
-            <Avatar sx={{ width: 32, height: 32 }}>{me?.fullName?.[0] ?? '?'}</Avatar>
-          </IconButton>
+
+          <Button
+            onClick={(e) => setUserAnchor(e.currentTarget)}
+            color="inherit"
+            aria-label="Conta"
+            sx={{ textTransform: 'none', px: 1.25, borderRadius: 2 }}
+          >
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 800 }}>
+                {me?.fullName?.[0] ?? '?'}
+              </Avatar>
+              <Stack alignItems="flex-start" sx={{ display: { xs: 'none', md: 'flex' } }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
+                  {me?.displayName ?? me?.fullName}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 700, lineHeight: 1.1 }}>
+                  {me?.profile?.toUpperCase()}
+                </Typography>
+              </Stack>
+            </Stack>
+          </Button>
         </Toolbar>
       </AppBar>
 
@@ -85,7 +147,7 @@ export default function Layout() {
               await api.patch(`/notifications/${n.id}/read`);
               await queryClient.invalidateQueries({ queryKey: ['notifications'] });
             }}
-            sx={{ whiteSpace: 'normal', maxWidth: 360 }}
+            sx={{ whiteSpace: 'normal', maxWidth: 380 }}
           >
             <ListItemText primary={n.title} secondary={n.body || undefined} />
           </MenuItem>
@@ -108,7 +170,12 @@ export default function Layout() {
           <ListItemText primary={me?.fullName} secondary={`${me?.email} · ${me?.profile}`} />
         </MenuItem>
         <Divider />
-        <MenuItem onClick={() => void signOut()}>Sair</MenuItem>
+        <MenuItem onClick={() => void signOut()}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          Sair
+        </MenuItem>
       </Menu>
 
       <Drawer
@@ -116,26 +183,62 @@ export default function Layout() {
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+          [`& .MuiDrawer-paper`]: {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+          },
         }}
       >
         <Toolbar />
-        <List>
+        <List sx={{ px: 1, pt: 1.5 }}>
           {NAV.filter((item) => can(item.permission)).map((item) => (
             <ListItemButton
               key={item.to}
               component={Link}
               to={item.to}
               selected={location.pathname === item.to}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(96, 207, 226, 0.12)',
+                  color: 'primary.main',
+                  '& .MuiListItemIcon-root': { color: 'primary.main' },
+                },
+              }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
+              {item.badge != null && item.badge > 0 && (
+                <Chip size="small" label={item.badge} sx={{ bgcolor: 'rgba(96,207,226,0.16)', color: 'primary.main' }} />
+              )}
             </ListItemButton>
           ))}
         </List>
+
+        <Box sx={{ flexGrow: 1 }} />
+        <Divider />
+        <Stack spacing={0.5} sx={{ p: 2 }}>
+          <Typography variant="caption" color="text.secondary">
+            Portal de Oportunidades v0.1.0
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Sessão única com o Tetelestai (SSO)
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<LogoutIcon />}
+            onClick={() => void signOut()}
+            sx={{ alignSelf: 'flex-start', mt: 0.5, color: 'text.secondary' }}
+          >
+            Encerrar sessão
+          </Button>
+        </Stack>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: 'background.default' }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: 'background.default', minWidth: 0 }}>
         <Toolbar />
         <Outlet />
       </Box>

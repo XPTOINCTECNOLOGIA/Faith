@@ -142,8 +142,8 @@ export default function KanbanPage() {
                           <LinearProgress
                             variant="determinate"
                             value={card.checklist.percent}
-                            color={card.checklist.percent === 100 ? 'success' : 'inherit'}
-                            sx={{ borderRadius: 1, height: 6 }}
+                            color={card.checklist.percent === 100 ? 'success' : 'primary'}
+                            sx={{ borderRadius: 1, height: 6, bgcolor: 'rgba(139, 155, 176, 0.2)' }}
                           />
                         </Tooltip>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
