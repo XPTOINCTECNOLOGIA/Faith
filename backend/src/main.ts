@@ -17,9 +17,9 @@ async function bootstrap() {
   app.enableCors({ origin: origins.length ? origins : true, credentials: false });
 
   const swagger = new DocumentBuilder()
-    .setTitle('Portal de Oportunidades XPTO + SERPRO')
+    .setTitle('FAITH — Portal de Oportunidades XPTO + SERPRO')
     .setDescription(
-      'API REST do portal. Autenticação: bearer token da sessão corporativa (SSO GoTrue). ' +
+      'API REST do FAITH. Autenticação: bearer token da sessão corporativa (SSO GoTrue). ' +
         'Especificação completa em portal-oportunidades/docs/.',
     )
     .setVersion('0.1.0')

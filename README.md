@@ -1,4 +1,7 @@
-# Portal de Oportunidades XPTO + SERPRO
+# FAITH — Portal de Oportunidades XPTO + SERPRO
+
+**FAITH** é o nome oficial da micro aplicação (seguindo a convenção do ecossistema corporativo:
+TETELESTAI, MANNA, TIKKUN, BNEI, MERKAVAH, JIREH, SPHRAGIS — e agora FAITH).
 
 Micro aplicação corporativa da **XPTO INC TECNOLOGIA** para centralizar, controlar e acompanhar
 todo o ciclo de vida das oportunidades de negócio da parceria **XPTO + SERPRO**, funcionando como

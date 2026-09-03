@@ -8,7 +8,7 @@ tema claro/escuro. Toda tela respeita permissões — itens sem permissão não 
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│ ☰  Portal de Oportunidades XPTO+SERPRO      🔍 busca    🔔(3)   👤 José ▾ │ AppBar
+│ 🛡 FAITH · Portal de Oportunidades XPTO+SERPRO  🔍 busca  🔔(3)  👤 José ▾ │ AppBar
 ├──────────┬─────────────────────────────────────────────────────────────────┤
 │ Pipeline │                                                                 │
 │ Oportuni-│                     <conteúdo da rota>                          │
@@ -26,8 +26,8 @@ tema claro/escuro. Toda tela respeita permissões — itens sem permissão não 
 
 ```
 ┌──────────────────────────────────────────────┐
-│              [logo XPTO + SERPRO]            │
-│        Portal de Oportunidades               │
+│           [logo FAITH — escudo+check]        │
+│      FAITH · Portal de Oportunidades         │
 │                                              │
 │   ┌──────────────────────────────────────┐   │
 │   │  Entrar com a conta corporativa  →   │   │  (redireciona ao IdP; sem

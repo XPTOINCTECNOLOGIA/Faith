@@ -2,9 +2,10 @@
 
 ## 1. Visão geral
 
-O Portal de Oportunidades XPTO + SERPRO é uma **micro aplicação** do ecossistema corporativo XPTO.
-O ecossistema hoje é composto por micro-apps (TETELESTAI, MANNA, TIKKUN, BNEI, MERKAVAH, JIREH,
-SPHRAGIS) que compartilham **um único PostgreSQL corporativo (Supabase)**, **uma única tabela de
+**FAITH** (Portal de Oportunidades XPTO + SERPRO) é uma **micro aplicação** do ecossistema
+corporativo XPTO. O ecossistema hoje é composto por micro-apps (TETELESTAI, MANNA, TIKKUN, BNEI,
+MERKAVAH, JIREH, SPHRAGIS — FAITH junta-se a elas, seguindo a mesma convenção de nomes) que
+compartilham **um único PostgreSQL corporativo (Supabase)**, **uma única tabela de
 identidade (`public.users`)** e **um único provedor de sessão (Supabase Auth/GoTrue)**. O SSO entre
 as aplicações é a sessão GoTrue compartilhada; a autorização é centralizada nas tabelas
 `profiles` / `permissions` / `profile_permissions`.
@@ -53,7 +54,7 @@ flowchart LR
 
     subgraph Ecossistema XPTO
         TET[Tetelestai\napp principal]
-        PORTAL[Portal de Oportunidades\nXPTO + SERPRO]
+        PORTAL[FAITH\nPortal de Oportunidades\nXPTO + SERPRO]
         GOTRUE[Provedor de Identidade\nSupabase Auth - OIDC/OAuth2]
         PG[(PostgreSQL corporativo\nusers, profiles, permissions,\nopp_*)]
         STG[(Object Storage\nbucket opp-documents)]
