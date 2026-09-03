@@ -7,7 +7,7 @@ import { brl0, type PinGroup } from '../lib/geo';
 import { DS } from '../theme';
 
 /**
- * Mapa geográfico do FAITH (Leaflet + CARTO claro), com os pins da marca.
+ * Mapa geográfico do FAITH (Leaflet + Esri Light Gray), com os pins da marca.
  * Reutilizado pelo Mapa Global (tela cheia) e pelo Dashboard (painel).
  * Carregar sempre via lazy() — o Leaflet fica fora do bundle inicial.
  */
@@ -74,9 +74,12 @@ export default function GeoMap({
         zoomControl={interactive}
         worldCopyJump
       >
+        {/* Esri World Light Gray Canvas: gratuito com atribuição, sem API key
+            (o CARTO anônimo passou a carimbar "API key required" nos tiles) */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution="Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={16}
         />
         <FitBounds points={groups.map((g) => [g.lat, g.lng] as [number, number])} />
         {groups.map((g) => (

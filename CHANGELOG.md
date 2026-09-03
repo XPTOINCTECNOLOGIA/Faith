@@ -1,5 +1,12 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.0.1 — 2026-09-03
+
+- **Mapa sem marca d'água**: o basemap anônimo do CARTO passou a carimbar
+  "API key required" nos tiles; o mapa (Mapa Global e Dashboard) migrou para
+  o Esri World Light Gray Canvas — gratuito com atribuição, sem chave e com a
+  mesma estética clara da marca.
+
 ## 2.0.0 — 2026-09-03
 
 - **Rebrand oficial "FAITH by XPTO"** (kit de marca derivado do Brand Book
