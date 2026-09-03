@@ -4,6 +4,7 @@
   "description": "FAITH — Frontend do Portal de Oportunidades XPTO + SERPRO",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.4.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
