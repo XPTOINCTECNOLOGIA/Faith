@@ -51,6 +51,22 @@ autenticação própria.
   aprovações e transições, com autor e data/hora.
 - **Infra**: Docker + manifests Kubernetes-ready.
 
+## Ambiente publicado (produção)
+
+- **App**: https://faith-xpto-xpto3.vercel.app (projeto Vercel `faith-xpto`, time XPTO).
+  O deploy de arquivos foi feito com Deployment Protection padrão do time; para liberar o
+  acesso sem login no Vercel: `vercel.com/xpto3/faith-xpto/settings/deployment-protection`
+  → desativar "Vercel Authentication".
+- **Banco/SSO**: projeto Supabase corporativo (o mesmo do Tetelestai). Migrations 0073 e 0074
+  aplicadas; login com a conta corporativa (GoTrue) — sem cadastro próprio.
+- **Modo de operação**: "modo ecossistema" — a SPA fala direto com PostgREST/Storage/GoTrue,
+  como as demais micro-apps; toda a governança (RN-001/002/007/013, notificações, auditoria de
+  transição) é imposta por triggers e RLS no banco (0073/0074). A API NestJS deste repositório
+  permanece como caminho oficial para o deploy Kubernetes (docs/11) — o front alterna de modo
+  trocando apenas `src/lib/api.ts`.
+- CI/CD recomendado: instalar o GitHub App do Vercel na org e conectar este repositório ao
+  projeto (root `portal-oportunidades/frontend`) para deploy automático por push.
+
 ## Desenvolvimento local
 
 ```bash

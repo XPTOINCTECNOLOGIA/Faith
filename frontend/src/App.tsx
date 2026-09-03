@@ -1,7 +1,7 @@
 import { Alert, Box, CircularProgress, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { ptBR } from '@mui/material/locale';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import Layout from './components/Layout';
 import AdminPage from './pages/AdminPage';
@@ -132,15 +132,21 @@ function Gate() {
   );
 }
 
+// Hospedagens sem rewrite de SPA (ex.: Storage público do Supabase servindo
+// index.html) usam HashRouter — navegação e refresh funcionam em qualquer
+// caminho. Em hosts com rewrite (Vercel, K8s/Nginx, dev) fica o BrowserRouter.
+const useHash = window.location.pathname.includes('/storage/v1/object/');
+const Router = useHash ? HashRouter : BrowserRouter;
+
 export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <BrowserRouter>
+          <Router>
             <Gate />
-          </BrowserRouter>
+          </Router>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
