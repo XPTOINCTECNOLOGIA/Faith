@@ -26,7 +26,10 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import GridViewIcon from '@mui/icons-material/GridView';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
+import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import PublicIcon from '@mui/icons-material/Public';
 import SearchIcon from '@mui/icons-material/Search';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
@@ -35,12 +38,14 @@ import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { FaithLogo } from './FaithLogo';
+import { FaithLogo, FaithMark } from './FaithLogo';
 import { api } from '../lib/api';
 import type { Notification } from '../lib/types';
 import { DS } from '../theme';
 
 const DRAWER_WIDTH = 240;
+const DRAWER_MINI = 72;
+const NAV_PREF_KEY = 'faith.nav.collapsed';
 
 interface NavItem {
   to: string;
@@ -55,6 +60,7 @@ const NAV: Array<{ section: string; items: NavItem[] }> = [
     items: [
       { to: '/', label: 'Dashboard', icon: <GridViewIcon fontSize="small" />, permission: 'opp.view' },
       { to: '/oportunidades', label: 'Oportunidades', icon: <TravelExploreIcon fontSize="small" />, permission: 'opp.view' },
+      { to: '/mapa', label: 'Mapa Global', icon: <PublicIcon fontSize="small" />, permission: 'opp.view' },
       { to: '/pipeline', label: 'Pipeline', icon: <ViewKanbanOutlinedIcon fontSize="small" />, permission: 'opp.view' },
     ],
   },
@@ -75,6 +81,14 @@ const NAV: Array<{ section: string; items: NavItem[] }> = [
   },
 ];
 
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(NAV_PREF_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export default function Layout() {
   const { me, can, signOut } = useAuth();
   const location = useLocation();
@@ -83,6 +97,21 @@ export default function Layout() {
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
   const [userAnchor, setUserAnchor] = useState<HTMLElement | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const drawerWidth = collapsed ? DRAWER_MINI : DRAWER_WIDTH;
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(NAV_PREF_KEY, c ? '0' : '1');
+      } catch {
+        /* preferências locais são best-effort */
+      }
+      return !c;
+    });
+  }
 
   const notifications = useQuery({
     queryKey: ['notifications'],
@@ -99,15 +128,114 @@ export default function Layout() {
   const isSelected = (to: string) =>
     to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
 
+  const navContent = (mini: boolean) => (
+    <>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: mini ? 0.75 : 1.25, pt: 1 }}>
+        {NAV.map((group, gi) => {
+          const visible = group.items.filter((i) => can(i.permission));
+          if (!visible.length) return null;
+          return (
+            <List
+              key={group.section}
+              dense
+              subheader={
+                mini ? (
+                  gi > 0 ? (
+                    <Divider sx={{ my: 1, mx: 1 }} />
+                  ) : undefined
+                ) : (
+                  <ListSubheader
+                    disableSticky
+                    sx={{ bgcolor: 'transparent', typography: 'overline', lineHeight: 2.4, px: 1.25 }}
+                  >
+                    {group.section}
+                  </ListSubheader>
+                )
+              }
+              sx={{ mb: 0.5 }}
+            >
+              {visible.map((item) => {
+                const selected = isSelected(item.to);
+                const button = (
+                  <ListItemButton
+                    key={item.to}
+                    component={Link}
+                    to={item.to}
+                    selected={selected}
+                    onClick={() => setMobileOpen(false)}
+                    sx={{
+                      mb: 0.25,
+                      py: 0.9,
+                      justifyContent: mini ? 'center' : 'flex-start',
+                      px: mini ? 1 : 1.5,
+                      color: selected ? 'primary.main' : 'text.primary',
+                      '&.Mui-selected': {
+                        bgcolor: DS.primarySoft,
+                        '&:hover': { bgcolor: DS.primarySoft },
+                        '& .MuiListItemIcon-root': { color: 'primary.main' },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: mini ? 0 : 34, color: 'text.secondary', justifyContent: 'center' }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    {!mini && (
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: selected ? 600 : 500 }}
+                      />
+                    )}
+                  </ListItemButton>
+                );
+                return mini ? (
+                  <Tooltip key={item.to} title={item.label} placement="right">
+                    {button}
+                  </Tooltip>
+                ) : (
+                  button
+                );
+              })}
+            </List>
+          );
+        })}
+      </Box>
+      <Divider />
+      {!mini && (
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            FAITH v1.1.0 · SSO Tetelestai
+          </Typography>
+        </Box>
+      )}
+    </>
+  );
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ gap: 2, minHeight: 60 }}>
-          <Box component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit', width: DRAWER_WIDTH - 24 }}>
-            <FaithLogo size={32} subtitle="Portal de Oportunidades" />
+        <Toolbar sx={{ gap: 1.5, minHeight: 60 }}>
+          <Tooltip title={collapsed ? 'Expandir menu' : 'Recolher menu'}>
+            <IconButton
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              {collapsed ? <MenuIcon /> : <MenuOpenIcon />}
+            </IconButton>
+          </Tooltip>
+          <IconButton
+            onClick={() => setMobileOpen(true)}
+            aria-label="Abrir menu"
+            sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+
+          <Box component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center' }}>
+            {collapsed ? <FaithMark size={32} /> : <FaithLogo size={32} subtitle="Portal de Oportunidades" />}
           </Box>
 
-          <Box component="form" onSubmit={submitSearch} sx={{ flexGrow: 1, maxWidth: 520 }}>
+          <Box component="form" onSubmit={submitSearch} sx={{ flexGrow: 1, maxWidth: 520, ml: 1.5 }}>
             <TextField
               fullWidth
               size="small"
@@ -214,81 +342,43 @@ export default function Layout() {
         </MenuItem>
       </Menu>
 
+      {/* Sidebar desktop (recolhível, animada) */}
       <Drawer
         variant="permanent"
         sx={{
-          width: DRAWER_WIDTH,
+          width: drawerWidth,
           flexShrink: 0,
           display: { xs: 'none', sm: 'block' },
           [`& .MuiDrawer-paper`]: {
-            width: DRAWER_WIDTH,
+            width: drawerWidth,
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
+            overflowX: 'hidden',
+            transition: 'width .22s ease',
           },
+          transition: 'width .22s ease',
         }}
       >
         <Toolbar sx={{ minHeight: 60 }} />
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1.25, pt: 1 }}>
-          {NAV.map((group) => {
-            const visible = group.items.filter((i) => can(i.permission));
-            if (!visible.length) return null;
-            return (
-              <List
-                key={group.section}
-                dense
-                subheader={
-                  <ListSubheader
-                    disableSticky
-                    sx={{
-                      bgcolor: 'transparent',
-                      typography: 'overline',
-                      lineHeight: 2.4,
-                      px: 1.25,
-                    }}
-                  >
-                    {group.section}
-                  </ListSubheader>
-                }
-                sx={{ mb: 0.5 }}
-              >
-                {visible.map((item) => {
-                  const selected = isSelected(item.to);
-                  return (
-                    <ListItemButton
-                      key={item.to}
-                      component={Link}
-                      to={item.to}
-                      selected={selected}
-                      sx={{
-                        mb: 0.25,
-                        py: 0.75,
-                        color: selected ? 'primary.main' : 'text.primary',
-                        '&.Mui-selected': {
-                          bgcolor: DS.primarySoft,
-                          '&:hover': { bgcolor: DS.primarySoft },
-                          '& .MuiListItemIcon-root': { color: 'primary.main' },
-                        },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 34, color: 'text.secondary' }}>{item.icon}</ListItemIcon>
-                      <ListItemText
-                        primary={item.label}
-                        primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: selected ? 600 : 500 }}
-                      />
-                    </ListItemButton>
-                  );
-                })}
-              </List>
-            );
-          })}
-        </Box>
-        <Divider />
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            FAITH v1.0.1 · SSO Tetelestai
-          </Typography>
-        </Box>
+        {navContent(collapsed)}
+      </Drawer>
+
+      {/* Sidebar mobile (temporária) */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          [`& .MuiDrawer-paper`]: { width: DRAWER_WIDTH, display: 'flex', flexDirection: 'column' },
+        }}
+      >
+        <Toolbar sx={{ minHeight: 60 }}>
+          <FaithLogo size={30} subtitle={null} />
+        </Toolbar>
+        {navContent(false)}
       </Drawer>
 
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3 } }}>

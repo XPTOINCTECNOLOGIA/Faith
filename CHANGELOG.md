@@ -1,5 +1,18 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 1.1.0 — 2026-09-03
+
+- **Mapa Global** (novo item do menu): mapa-múndi interativo (Leaflet + CARTO)
+  com pins agrupados por localidade — capital da UF, município conhecido ou
+  capital do país — mostrando a contagem de oportunidades; pin verde quando
+  100% da localidade já está no Pipeline. Clique no pin abre painel com as
+  oportunidades do local (órgão em destaque, valores, status/etapa e atalhos
+  Abrir/Detalhes); filtros Todas/Brasil/Internacional, legenda e ajuste
+  automático de enquadramento. Carregado sob demanda (code-splitting).
+- **Menu recolhível**: sidebar desliza entre completa (240px) e compacta de
+  ícones (72px) com animação, tooltips no modo compacto e preferência
+  lembrada; no mobile vira menu hambúrguer com drawer temporário.
+
 ## 1.0.0 — 2026-09-03
 
 - **Redesign completo (FAITH Design System v1 — "Executivo claro")**: tema

@@ -9,7 +9,11 @@ import ClientsPage from './pages/ClientsPage';
 import DashboardPage from './pages/DashboardPage';
 import FocalPointsPage from './pages/FocalPointsPage';
 import KanbanPage from './pages/KanbanPage';
+import { lazy, Suspense } from 'react';
 import LoginPage from './pages/LoginPage';
+
+// Mapa carrega sob demanda (Leaflet fica fora do bundle inicial)
+const MapPage = lazy(() => import('./pages/MapPage'));
 import NewOpportunityPage from './pages/NewOpportunityPage';
 import OpportunityPage from './pages/OpportunityPage';
 import PartnersPage from './pages/PartnersPage';
@@ -56,6 +60,20 @@ function Gate() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/oportunidades" element={<RadarPage />} />
         <Route path="/pipeline" element={<KanbanPage />} />
+        <Route
+          path="/mapa"
+          element={
+            <Suspense
+              fallback={
+                <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 320 }}>
+                  <CircularProgress />
+                </Box>
+              }
+            >
+              <MapPage />
+            </Suspense>
+          }
+        />
         <Route path="/oportunidades/nova" element={<NewOpportunityPage />} />
         <Route path="/oportunidades/:id" element={<OpportunityPage />} />
         <Route path="/orgaos" element={<ClientsPage />} />
