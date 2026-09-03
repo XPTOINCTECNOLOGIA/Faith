@@ -1,5 +1,19 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.4.0 — 2026-09-03
+
+- **GED — repositório eletrônico do projeto** (aba Documentos repaginada):
+  documentos tipados pelo catálogo oficial (Termo de referência, Edital,
+  Proposta técnica, Proposta comercial, Memorial, Arquitetura,
+  Especificações, Ata de reunião, E-mail importante, Apresentação, Contrato,
+  Aditivo — migration 0084, editável com `opp.config`) e **versionados**:
+  "Proposta Técnica v03" com data de inclusão, autor, tamanho e download por
+  versão (URL assinada). Botão "Nova versão" incrementa (v01 → v02…) e
+  devolve o documento à análise; histórico completo expansível por
+  documento. Upload aceita PDF, Word, Excel, PPT, ZIP e afins (25 MB,
+  RN-011); vínculo opcional a item do checklist e aprovação/rejeição
+  (RN-012/013) preservados; agrupamento por tipo na ordem do catálogo.
+
 ## 2.3.0 — 2026-09-03
 
 - **Esteira de Maturidade** (nova aba no projeto): segundo eixo de

@@ -411,6 +411,47 @@ async function uploadDocument(oppId: number, form: FormData) {
   return mapDoc({ id: docId, name, status: 'em_analise', current_version: 1 });
 }
 
+/** Nova versão de um documento existente (GED): incrementa e volta à análise. */
+async function uploadDocumentVersion(docId: number, form: FormData) {
+  const my = await me();
+  const file = form.get('file') as File | null;
+  if (!file) throw new ApiError(422, 'Arquivo obrigatório');
+  if (file.size > 25 * 1024 * 1024) throw new ApiError(422, 'Arquivo excede 25 MB (RN-011)');
+
+  const { data: doc, error } = await supabase.from('opp_documents')
+    .select('id, opportunity_id, current_version, checklist_item_id, name')
+    .eq('id', docId).single();
+  if (error) fail(error);
+  const oppId = Number(doc.opportunity_id);
+  const version = Number(doc.current_version) + 1;
+
+  const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+  const path = `opp-${oppId}/doc-${docId}/v${version}-${crypto.randomUUID()}${ext}`;
+  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file);
+  if (upErr) throw new ApiError(500, `Falha ao armazenar o arquivo: ${upErr.message}`);
+
+  const { error: verErr } = await supabase.from('opp_document_versions').insert({
+    document_id: docId, version, file_name: file.name, mime_type: file.type || null,
+    size_bytes: file.size, storage_path: path,
+    observacoes: (form.get('observacoes') as string) || null, uploaded_by: my.id,
+  });
+  if (verErr) fail(verErr);
+
+  // nova versão volta à análise (e reflete no item de checklist, se houver)
+  const { error: updErr } = await supabase.from('opp_documents')
+    .update({ current_version: version, status: 'em_analise' }).eq('id', docId);
+  if (updErr) fail(updErr);
+  if (doc.checklist_item_id) {
+    await supabase.from('opp_checklist_items')
+      .update({ status: 'em_analise' }).eq('id', Number(doc.checklist_item_id));
+  }
+  await audit([{
+    entity: 'document', entityId: docId, opportunityId: oppId,
+    action: 'upload', field: 'version', oldValue: doc.current_version, newValue: version,
+  }]);
+  return { id: docId, version };
+}
+
 async function reviewDocument(docId: number, action: 'aprovado' | 'rejeitado', justification?: string) {
   const my = await me();
   if (action === 'rejeitado' && !justification)
@@ -634,6 +675,27 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
     if ((x = m(/^\/documents\/(\d+)\/versions\/(\d+)\/download$/)))
       return downloadDocument(Number(x[1]), Number(x[2]));
 
+    if (p === '/doc-types') {
+      const { data, error } = await supabase.from('opp_doc_types')
+        .select('*').eq('active', true).order('position');
+      if (error) fail(error);
+      return (data ?? []).map((t: any) => ({
+        id: Number(t.id), code: t.code, name: t.name, position: t.position,
+      }));
+    }
+    if ((x = m(/^\/documents\/(\d+)\/versions$/))) {
+      const { data, error } = await supabase.from('opp_document_versions')
+        .select('version, file_name, mime_type, size_bytes, observacoes, uploaded_at, uploader:users(full_name)')
+        .eq('document_id', Number(x[1])).order('version', { ascending: false });
+      if (error) fail(error);
+      return (data ?? []).map((v: any) => ({
+        version: Number(v.version), fileName: v.file_name, mimeType: v.mime_type,
+        sizeBytes: v.size_bytes == null ? null : Number(v.size_bytes),
+        observacoes: v.observacoes, uploadedAt: v.uploaded_at,
+        uploaderName: v.uploader?.full_name ?? '—',
+      }));
+    }
+
     if ((x = m(/^\/opportunities\/(\d+)\/history$/))) {
       const oppId = Number(x[1]);
       const [tr, au, ms] = await Promise.all([
@@ -824,6 +886,7 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       return { id: Number(data.id), body: data.body, createdAt: data.created_at };
     }
     if ((x = m(/^\/opportunities\/(\d+)\/documents$/)) && form) return uploadDocument(Number(x[1]), form);
+    if ((x = m(/^\/documents\/(\d+)\/versions$/)) && form) return uploadDocumentVersion(Number(x[1]), form);
     if ((x = m(/^\/documents\/(\d+)\/approve$/))) return reviewDocument(Number(x[1]), 'aprovado');
     if ((x = m(/^\/documents\/(\d+)\/reject$/))) return reviewDocument(Number(x[1]), 'rejeitado', body.justification);
 

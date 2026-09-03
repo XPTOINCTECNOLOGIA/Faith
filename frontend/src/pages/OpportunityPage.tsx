@@ -1431,8 +1431,67 @@ function ChecklistTab({ oppId }: { oppId: number }) {
   );
 }
 
+/* ── Documentos (GED / repositório eletrônico do projeto) ────────────────────
+   Documentos tipados (catálogo opp_doc_types) e versionados: quem consulta
+   sempre vê nome, tipo, versão (v01, v02…), data de inclusão e autor, com
+   histórico completo de versões e download por versão. Aceita PDF, Office,
+   ZIP etc. (limite 25 MB — RN-011); aprovação/rejeição RN-012/013 mantidas. */
+
+interface DocType { id: number; code: string; name: string; position: number }
+interface DocVersion {
+  version: number; fileName: string; mimeType: string | null; sizeBytes: number | null;
+  observacoes: string | null; uploadedAt: string; uploaderName: string;
+}
+
+const DOC_ACCEPT =
+  '.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.rar,.7z,.msg,.eml,.txt,.png,.jpg,.jpeg';
+
+const vLabel = (n: number) => `v${String(n).padStart(2, '0')}`;
+const fmtBytes = (b: number | null) => {
+  if (b == null) return '';
+  if (b < 1024 * 1024) return `${Math.max(1, Math.round(b / 1024))} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+function DocVersionsList({ docId, onDownload }: { docId: number; onDownload: (v: number) => void }) {
+  const versions = useQuery({
+    queryKey: ['doc-versions', docId],
+    queryFn: () => api.get<DocVersion[]>(`/documents/${docId}/versions`),
+  });
+  if (versions.isLoading) return <LinearProgress sx={{ my: 1 }} />;
+  return (
+    <Table size="small" sx={{ '& td, & th': { border: 0, py: 0.5 } }}>
+      <TableBody>
+        {(versions.data ?? []).map((v) => (
+          <TableRow key={v.version}>
+            <TableCell sx={{ width: 56 }}>
+              <Chip size="small" label={vLabel(v.version)} sx={{ bgcolor: DS.navySoft, color: DS.ardosia, fontWeight: 700 }} />
+            </TableCell>
+            <TableCell>
+              <Typography variant="caption">
+                {v.fileName}
+                {v.sizeBytes != null && ` · ${fmtBytes(v.sizeBytes)}`}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                {new Date(v.uploadedAt).toLocaleString('pt-BR')} · {v.uploaderName}
+                {v.observacoes && ` — ${v.observacoes}`}
+              </Typography>
+            </TableCell>
+            <TableCell align="right" sx={{ width: 60 }}>
+              <IconButton size="small" onClick={() => onDownload(v.version)} aria-label={`Baixar ${vLabel(v.version)}`}>
+                <DownloadIcon fontSize="inherit" />
+              </IconButton>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 function DocumentsTab({ oppId, onChanged }: { oppId: number; onChanged: () => Promise<unknown> }) {
   const { can } = useAuth();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const checklist = useQuery({
     queryKey: ['checklist', oppId],
@@ -1442,10 +1501,21 @@ function DocumentsTab({ oppId, onChanged }: { oppId: number; onChanged: () => Pr
     queryKey: ['documents', oppId],
     queryFn: () => api.get<PortalDocument[]>(`/opportunities/${oppId}/documents`),
   });
-  const [uploadItem, setUploadItem] = useState<number | ''>('');
+  const docTypes = useQuery({ queryKey: ['doc-types'], queryFn: () => api.get<DocType[]>('/doc-types') });
+
+  // novo documento
+  const [newOpen, setNewOpen] = useState(false);
+  const [newTipo, setNewTipo] = useState('');
+  const [newNome, setNewNome] = useState('');
+  const [newObs, setNewObs] = useState('');
+  const [newItem, setNewItem] = useState<number | ''>('');
   const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  // outros estados
   const [rejecting, setRejecting] = useState<PortalDocument | null>(null);
   const [justification, setJustification] = useState('');
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [versioning, setVersioning] = useState<number | null>(null);
 
   async function run(action: () => Promise<unknown>) {
     setError(null);
@@ -1460,114 +1530,241 @@ function DocumentsTab({ oppId, onChanged }: { oppId: number; onChanged: () => Pr
   const pendingItems = (checklist.data?.items ?? []).filter(
     (i) => i.isCurrentStage && !i.documentId && i.status !== 'dispensado',
   );
+  const items = docs.data ?? [];
+  const typeName = (code: string | null) =>
+    (docTypes.data ?? []).find((t) => t.code === code)?.name ?? null;
+
+  // agrupamento por tipo, na ordem do catálogo; sem tipo vai para o fim
+  const groups: Array<{ key: string; label: string; docs: PortalDocument[] }> = [
+    ...(docTypes.data ?? [])
+      .map((t) => ({ key: t.code, label: t.name, docs: items.filter((d) => d.docType === t.code) }))
+      .filter((g) => g.docs.length > 0),
+    ...(items.some((d) => !d.docType || !typeName(d.docType))
+      ? [{
+          key: '_sem_tipo',
+          label: 'Sem tipo definido',
+          docs: items.filter((d) => !d.docType || !typeName(d.docType)),
+        }]
+      : []),
+  ];
+
+  async function download(docId: number, version: number) {
+    await run(async () => {
+      const { url } = await api.get<{ url: string }>(`/documents/${docId}/versions/${version}/download`);
+      window.open(url, '_blank', 'noopener');
+    });
+  }
+
+  async function sendNew() {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('name', newNome.trim() || file.name);
+      form.append('docType', newTipo);
+      if (newObs.trim()) form.append('observacoes', newObs.trim());
+      if (newItem !== '') form.append('checklistItemId', String(newItem));
+      await api.postForm(`/opportunities/${oppId}/documents`, form);
+      setNewOpen(false);
+      setFile(null);
+      setNewNome('');
+      setNewObs('');
+      setNewItem('');
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao enviar o documento.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendVersion(doc: PortalDocument, f: File) {
+    setVersioning(doc.id);
+    await run(async () => {
+      const form = new FormData();
+      form.append('file', f);
+      await api.postForm(`/documents/${doc.id}/versions`, form);
+      await queryClient.invalidateQueries({ queryKey: ['doc-versions', doc.id] });
+    });
+    setVersioning(null);
+  }
 
   return (
-    <Stack spacing={2}>
-      {error && <Alert severity="error">{error}</Alert>}
-      {can('opp.doc.upload') && (
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-          <TextField
-            select
-            size="small"
-            label="Item do checklist (opcional)"
-            value={uploadItem}
-            onChange={(e) => setUploadItem(e.target.value === '' ? '' : Number(e.target.value))}
-            sx={{ minWidth: 280 }}
-          >
-            <MenuItem value="">Documento avulso</MenuItem>
-            {pendingItems.map((i) => (
-              <MenuItem key={i.id} value={i.id}>
-                {i.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button component="label" startIcon={<UploadFileIcon />} variant="outlined">
-            {file ? file.name : 'Escolher arquivo'}
-            <input hidden type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </Button>
+    <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <Stack direction="row" alignItems="center" sx={{ mb: 0.5 }}>
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="subtitle2">Repositório do projeto</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {items.length} documento{items.length === 1 ? '' : 's'} · tipados e versionados — PDF, Office,
+            ZIP e afins (até 25 MB)
+          </Typography>
+        </Box>
+        {can('opp.doc.upload') && (
           <Button
             variant="contained"
-            disabled={!file}
-            onClick={() =>
-              run(async () => {
-                const form = new FormData();
-                form.append('file', file!);
-                form.append('name', file!.name);
-                if (uploadItem !== '') form.append('checklistItemId', String(uploadItem));
-                await api.postForm(`/opportunities/${oppId}/documents`, form);
-                setFile(null);
-                setUploadItem('');
-              })
-            }
+            startIcon={<UploadFileIcon />}
+            onClick={() => {
+              setNewTipo(docTypes.data?.[0]?.code ?? '');
+              setError(null);
+              setNewOpen(true);
+            }}
           >
-            Enviar
+            Novo documento
           </Button>
-        </Stack>
+        )}
+      </Stack>
+
+      {docs.isLoading && <LinearProgress sx={{ my: 2 }} />}
+      {!docs.isLoading && items.length === 0 && (
+        <Alert severity="info" sx={{ mt: 1.5 }}>
+          Nenhum documento no repositório ainda. Comece pelo termo de referência, edital ou pela
+          proposta — cada novo envio do mesmo documento vira uma versão (v01, v02…).
+        </Alert>
       )}
 
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Documento</TableCell>
-            <TableCell>Categoria</TableCell>
-            <TableCell>Versão</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Responsável</TableCell>
-            <TableCell align="right">Ações</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {(docs.data ?? []).map((doc) => (
-            <TableRow key={doc.id}>
-              <TableCell>{doc.name}</TableCell>
-              <TableCell>{doc.category ?? '—'}</TableCell>
-              <TableCell>v{doc.currentVersion}</TableCell>
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={STATUS_LABEL[doc.status]}
-                  color={doc.status === 'aprovado' ? 'success' : doc.status === 'rejeitado' ? 'error' : 'warning'}
-                />
-              </TableCell>
-              <TableCell>{doc.creator?.fullName ?? '—'}</TableCell>
-              <TableCell align="right">
-                <Button
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={() =>
-                    run(async () => {
-                      const { url } = await api.get<{ url: string }>(
-                        `/documents/${doc.id}/versions/${doc.currentVersion}/download`,
-                      );
-                      window.open(url, '_blank', 'noopener');
-                    })
-                  }
-                >
-                  Baixar
-                </Button>
-                {can('opp.doc.approve') && doc.status === 'em_analise' && (
-                  <>
-                    <Button size="small" color="success" onClick={() => run(() => api.post(`/documents/${doc.id}/approve`))}>
-                      Aprovar
-                    </Button>
-                    <Button size="small" color="error" onClick={() => setRejecting(doc)}>
-                      Rejeitar
-                    </Button>
-                  </>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-          {(docs.data ?? []).length === 0 && (
-            <TableRow>
-              <TableCell colSpan={6}>
-                <Typography color="text.secondary">Nenhum documento enviado.</Typography>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <Stack spacing={2} sx={{ mt: 1.5 }}>
+        {groups.map((g) => (
+          <Box key={g.key}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+              <Typography variant="overline">{g.label}</Typography>
+              <Chip size="small" label={g.docs.length} sx={{ height: 18, fontSize: 11 }} />
+            </Stack>
+            <Stack spacing={1}>
+              {g.docs.map((doc) => {
+                const isOpen = expanded === doc.id;
+                return (
+                  <Box key={doc.id} sx={{ border: `1px solid ${DS.border}`, borderRadius: 2, p: 1.25, bgcolor: 'background.paper' }}>
+                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Typography variant="body2" fontWeight={600}>
+                        {doc.name}
+                      </Typography>
+                      <Chip size="small" label={vLabel(doc.currentVersion)} sx={{ bgcolor: DS.primarySoft, color: DS.ardosia, fontWeight: 700 }} />
+                      <Chip
+                        size="small"
+                        label={STATUS_LABEL[doc.status]}
+                        sx={{
+                          bgcolor: doc.status === 'aprovado' ? STATE_SOFT.success.bg : doc.status === 'rejeitado' ? STATE_SOFT.error.bg : STATE_SOFT.warning.bg,
+                          color: doc.status === 'aprovado' ? STATE_SOFT.success.color : doc.status === 'rejeitado' ? STATE_SOFT.error.color : STATE_SOFT.warning.color,
+                        }}
+                      />
+                      <Box sx={{ flexGrow: 1 }} />
+                      <Button size="small" startIcon={<DownloadIcon />} onClick={() => void download(doc.id, doc.currentVersion)}>
+                        Baixar
+                      </Button>
+                      {can('opp.doc.upload') && (
+                        <Button size="small" component="label" startIcon={<UploadFileIcon />} disabled={versioning === doc.id}>
+                          Nova versão
+                          <input
+                            hidden
+                            type="file"
+                            accept={DOC_ACCEPT}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = '';
+                              if (f) void sendVersion(doc, f);
+                            }}
+                          />
+                        </Button>
+                      )}
+                      {can('opp.doc.approve') && doc.status === 'em_analise' && (
+                        <>
+                          <Button size="small" color="success" onClick={() => run(() => api.post(`/documents/${doc.id}/approve`))}>
+                            Aprovar
+                          </Button>
+                          <Button size="small" color="error" onClick={() => setRejecting(doc)}>
+                            Rejeitar
+                          </Button>
+                        </>
+                      )}
+                      <Button size="small" onClick={() => setExpanded(isOpen ? null : doc.id)}>
+                        {isOpen ? 'Ocultar versões' : 'Versões'}
+                      </Button>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      Incluído em {new Date(doc.createdAt).toLocaleDateString('pt-BR')}
+                      {doc.creator?.fullName ? ` por ${doc.creator.fullName}` : ''}
+                      {doc.category ? ` · checklist: ${doc.category}` : ''}
+                    </Typography>
+                    {isOpen && (
+                      <Box sx={{ mt: 1, borderTop: `1px dashed ${DS.border}`, pt: 0.5 }}>
+                        <DocVersionsList docId={doc.id} onDownload={(v) => void download(doc.id, v)} />
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
 
+      {/* Novo documento */}
+      <Dialog open={newOpen} onClose={() => setNewOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Novo documento</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <TextField select label="Tipo de documento" value={newTipo} onChange={(e) => setNewTipo(e.target.value)}>
+              {(docTypes.data ?? []).map((t) => (
+                <MenuItem key={t.code} value={t.code}>
+                  {t.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button component="label" startIcon={<UploadFileIcon />} variant="outlined" sx={{ justifyContent: 'flex-start' }}>
+              {file ? `${file.name} (${fmtBytes(file.size)})` : 'Escolher arquivo (PDF, Word, Excel, PPT, ZIP…)'}
+              <input
+                hidden
+                type="file"
+                accept={DOC_ACCEPT}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setFile(f);
+                  if (f && !newNome.trim()) setNewNome(f.name.replace(/\.[^.]+$/, ''));
+                }}
+              />
+            </Button>
+            <TextField
+              label="Nome do documento"
+              placeholder="ex.: Proposta Técnica"
+              value={newNome}
+              onChange={(e) => setNewNome(e.target.value)}
+            />
+            <TextField
+              select
+              label="Vincular a item do checklist (opcional)"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value === '' ? '' : Number(e.target.value))}
+            >
+              <MenuItem value="">Nenhum — documento do repositório</MenuItem>
+              {pendingItems.map((i) => (
+                <MenuItem key={i.id} value={i.id}>
+                  {i.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              multiline
+              minRows={2}
+              label="Observações (opcional)"
+              value={newObs}
+              onChange={(e) => setNewObs(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNewOpen(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={!file || !newTipo || busy} onClick={() => void sendNew()}>
+            Enviar (v01)
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rejeição RN-012 */}
       <Dialog open={!!rejecting} onClose={() => setRejecting(null)} fullWidth maxWidth="sm">
         <DialogTitle>Rejeitar “{rejecting?.name}”</DialogTitle>
         <DialogContent>
@@ -1600,7 +1797,7 @@ function DocumentsTab({ oppId, onChanged }: { oppId: number; onChanged: () => Pr
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </Box>
   );
 }
 
