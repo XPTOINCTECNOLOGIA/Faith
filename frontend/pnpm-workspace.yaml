@@ -1,0 +1,5 @@
+# O frontend do FAITH é seu próprio workspace-root: sem isto, o pnpm sobe até
+# o pnpm-workspace.yaml da raiz do monorepo (packages: []) e instala as
+# dependências lá — no Vercel (Root Directory = esta pasta) o build falha com
+# "vite: command not found". Reproduzido e validado localmente.
+packages: []

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-oportunidades-api
+  namespace: portal-oportunidades
+  labels: { app: portal-oportunidades-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: portal-oportunidades-api }
+  template:
+    metadata:
+      labels: { app: portal-oportunidades-api }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: api
+          image: registry.xpto/portal-oportunidades-api:latest
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - configMapRef: { name: portal-oportunidades-config }
+            - secretRef: { name: portal-oportunidades-secrets }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          livenessProbe:
+            httpGet: { path: /health, port: 3001 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 3001 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-oportunidades-api
+  namespace: portal-oportunidades
+spec:
+  selector: { app: portal-oportunidades-api }
+  ports:
+    - port: 3001
+      targetPort: 3001

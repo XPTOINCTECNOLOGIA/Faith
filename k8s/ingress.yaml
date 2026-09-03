@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portal-oportunidades
+  namespace: portal-oportunidades
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/proxy-body-size: 30m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [oportunidades.xpto.com.br]
+      secretName: portal-oportunidades-tls
+  rules:
+    - host: oportunidades.xpto.com.br
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: portal-oportunidades-api
+                port: { number: 3001 }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portal-oportunidades-web
+                port: { number: 80 }
