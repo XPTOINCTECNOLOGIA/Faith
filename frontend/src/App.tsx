@@ -11,6 +11,7 @@ import FocalPointsPage from './pages/FocalPointsPage';
 import KanbanPage from './pages/KanbanPage';
 import { lazy, Suspense } from 'react';
 import LoginPage from './pages/LoginPage';
+import NoAccessPage from './pages/NoAccessPage';
 
 // Mapa carrega sob demanda (Leaflet fica fora do bundle inicial)
 const MapPage = lazy(() => import('./pages/MapPage'));
@@ -53,6 +54,9 @@ function Gate() {
       </Box>
     );
   }
+  // Conta ativa, porém sem nenhuma permissão opp.* (perfil de outra aplicação
+  // do ecossistema, ou externo ainda não liberado): tela educada, não vazia.
+  if (me.permissions.length === 0) return <NoAccessPage />;
 
   return (
     <Routes>

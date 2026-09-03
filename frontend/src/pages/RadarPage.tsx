@@ -28,6 +28,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
@@ -267,6 +268,40 @@ export default function RadarPage() {
     }
   }
 
+  /** Exporta a visão filtrada/ordenada em CSV (padrão dos 17 campos oficiais). */
+  function exportCsv() {
+    const cols: Array<[string, (r: RadarOpportunity) => string]> = [
+      ['numero', (r) => String(r.id)],
+      ['abrangencia', (r) => r.abrangencia],
+      ['esfera', (r) => r.esfera],
+      ['pais', (r) => r.pais],
+      ['uf', (r) => r.uf],
+      ['cidade', (r) => r.cidade],
+      ['icone_bandeira', (r) => r.icone_bandeira],
+      ['objeto', (r) => r.objeto],
+      ['orgao_responsavel', (r) => r.orgao_responsavel],
+      ['valor_estimado_total_contrato', (r) => r.valor_estimado_total_contrato],
+      ['periodo', (r) => r.periodo],
+      ['tempo_contrato', (r) => r.tempo_contrato],
+      ['valor_mensal', (r) => r.valor_mensal],
+      ['responsavel_serpro', (r) => r.responsavel_serpro],
+      ['hunter', (r) => r.hunter],
+      ['parceiro', (r) => r.parceiro],
+      ['nome_parceiro', (r) => r.nome_parceiro],
+      ['status_pipeline', (r) => (r.pipeline ? `${r.pipeline.code} · ${r.pipeline.stage?.name ?? ''}` : 'Prospecção')],
+    ];
+    const esc = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    // BOM + ponto-e-vírgula: abre certo no Excel pt-BR
+    const csv = '﻿' +
+      [cols.map(([h]) => h).join(';'), ...sorted.map((r) => cols.map(([, f]) => esc(f(r))).join(';'))].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `faith-oportunidades-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -293,6 +328,14 @@ export default function RadarPage() {
             <TableRowsIcon fontSize="small" sx={{ mr: 0.75 }} /> Tabela
           </ToggleButton>
         </ToggleButtonGroup>
+        <Button
+          variant="outlined"
+          startIcon={<FileDownloadOutlinedIcon />}
+          onClick={exportCsv}
+          disabled={sorted.length === 0}
+        >
+          Exportar
+        </Button>
         {canWrite && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
             Nova oportunidade

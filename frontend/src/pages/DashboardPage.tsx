@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { brl0, buildPinGroups } from '../lib/geo';
+import { ACTION_LABEL, ENTITY_LABEL } from '../lib/labels';
 import {
   formatBRL,
   LEAD_SOURCE_LABEL,
@@ -55,19 +56,7 @@ interface AuditRow {
   newValue: string | null; actorName: string | null; occurredAt: string; opportunityId: number | null;
 }
 
-const ACTION_LABEL: Record<string, string> = {
-  create: 'criou', update: 'atualizou', transition: 'avançou etapa de', close: 'encerrou',
-  reopen: 'reabriu', upload: 'anexou documento em', approve: 'aprovou documento de',
-  reject: 'rejeitou documento de', promote: 'promoveu ao Pipeline', delete: 'removeu',
-  deactivate: 'desativou', download: 'baixou documento de',
-  'focal.vinculado': 'vinculou responsável SERPRO em', 'focal.removido': 'removeu responsável SERPRO de',
-  'focal.principal': 'alterou responsável principal de',
-};
-const ENTITY_LABEL: Record<string, string> = {
-  opportunity: 'oportunidade', client: 'cliente', partner: 'parceiro', document: 'documento',
-  comment: 'comentário', radar: 'oportunidade do radar', focal_point: 'ponto focal',
-  opportunity_focal_point: 'oportunidade', checklist_item: 'item de checklist',
-};
+// Rótulos humanizados compartilhados com a Auditoria (lib/labels.ts)
 
 export default function DashboardPage() {
   const navigate = useNavigate();

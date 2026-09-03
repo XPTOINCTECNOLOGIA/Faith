@@ -683,7 +683,11 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (qp.get('action')) q = q.eq('action', qp.get('action')!);
       if (qp.get('opportunityId')) q = q.eq('opportunity_id', Number(qp.get('opportunityId')));
       const size = Number(qp.get('pageSize') ?? 20);
-      const { data, count, error } = await q.order('occurred_at', { ascending: false }).limit(size);
+      const page = Math.max(1, Number(qp.get('page') ?? 1));
+      const from = (page - 1) * size;
+      const { data, count, error } = await q
+        .order('occurred_at', { ascending: false })
+        .range(from, from + size - 1);
       if (error) fail(error);
       return {
         items: (data ?? []).map((a: any) => ({
@@ -693,7 +697,7 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
           actorName: a.actor?.full_name ?? null,
           occurredAt: a.occurred_at,
         })),
-        total: count ?? 0, page: 1, pageSize: size,
+        total: count ?? 0, page, pageSize: size,
       };
     }
 

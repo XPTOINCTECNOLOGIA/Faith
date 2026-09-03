@@ -1,5 +1,23 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.1.0 — 2026-09-03
+
+- **Tela de "sem acesso"**: conta autenticada sem nenhuma permissão `opp.*`
+  (perfil de outra aplicação do ecossistema ou externo ainda não liberado)
+  passa a ver uma tela educada — quem é, por que não entrou e o que fazer —
+  em vez de uma plataforma vazia.
+- **Trilha de auditoria redesenhada**: nome real de quem fez (em vez de
+  `#id`), ações humanizadas em pt-BR (incluindo `regress` — retorno de etapa
+  RN-025 — e `promote`), badges por tom semântico, filtros por seleção
+  (entidade/ação), tempo relativo ("há 3 h"), diff compacto com tooltip,
+  link direto para a oportunidade e paginação real (25 por página).
+- **Exportar CSV no radar**: botão "Exportar" nas Oportunidades gera CSV com
+  os 17 campos oficiais + status no Pipeline, respeitando filtros e ordenação
+  da tela (BOM + `;` — abre correto no Excel pt-BR).
+- **Rótulos de auditoria unificados** (`lib/labels.ts`): Dashboard e
+  Auditoria compartilham a mesma fonte; ações novas ganham nome em um só
+  lugar.
+
 ## 2.0.1 — 2026-09-03
 
 - **Mapa sem marca d'água**: o basemap anônimo do CARTO passou a carimbar
