@@ -12,6 +12,12 @@ O portal integra-se ao ecossistema corporativo existente (aplicação principal 
 micro-apps), consumindo a mesma base de usuários, perfis e permissões via SSO — sem manter
 autenticação própria.
 
+Seguindo a convenção do ecossistema (TIKKUN, MANNA, JIREH etc.: **um repositório por aplicação,
+banco de dados único**), o código do FAITH vive neste repositório próprio (`xptoinc/FAITH`),
+enquanto as **migrations** do banco compartilhado permanecem centralizadas no repositório
+`xptoinc/TETELESTAI` (`supabase/migrations/0073_portal_oportunidades.sql` e
+`0074_faith_modo_ecossistema.sql`), como as das demais micro-apps.
+
 ## Estrutura deste diretório
 
 | Caminho | Conteúdo |
@@ -33,7 +39,7 @@ autenticação própria.
 | `frontend/` | Código inicial da interface — React + TypeScript + Material UI |
 | `k8s/` | Manifests Kubernetes (deployment, service, ingress, configmap) |
 | `docker-compose.yml` | Ambiente local completo (API + front + Postgres) |
-| `../supabase/migrations/0073_portal_oportunidades.sql` | DDL oficial, no padrão de migrations do ecossistema |
+| `TETELESTAI/supabase/migrations/0073*.sql` e `0074*.sql` | DDL oficial (repositório TETELESTAI, padrão do ecossistema) |
 
 ## Sumário executivo da solução
 
@@ -53,10 +59,8 @@ autenticação própria.
 
 ## Ambiente publicado (produção)
 
-- **App**: https://faith-xpto-xpto3.vercel.app (projeto Vercel `faith-xpto`, time XPTO).
-  O deploy de arquivos foi feito com Deployment Protection padrão do time; para liberar o
-  acesso sem login no Vercel: `vercel.com/xpto3/faith-xpto/settings/deployment-protection`
-  → desativar "Vercel Authentication".
+- **App**: https://faith-oportunidades.vercel.app (projeto Vercel `faith-oportunidades`, time XPTO),
+  acesso público (a autenticação é a do próprio portal, via SSO corporativo).
 - **Banco/SSO**: projeto Supabase corporativo (o mesmo do Tetelestai). Migrations 0073 e 0074
   aplicadas; login com a conta corporativa (GoTrue) — sem cadastro próprio.
 - **Modo de operação**: "modo ecossistema" — a SPA fala direto com PostgREST/Storage/GoTrue,
@@ -64,8 +68,8 @@ autenticação própria.
   transição) é imposta por triggers e RLS no banco (0073/0074). A API NestJS deste repositório
   permanece como caminho oficial para o deploy Kubernetes (docs/11) — o front alterna de modo
   trocando apenas `src/lib/api.ts`.
-- CI/CD recomendado: instalar o GitHub App do Vercel na org e conectar este repositório ao
-  projeto (root `portal-oportunidades/frontend`) para deploy automático por push.
+- CI/CD: o projeto Vercel deve ficar conectado a **este repositório** (`xptoinc/FAITH`,
+  Root Directory `frontend`) para deploy automático por push na `main`.
 
 ## Desenvolvimento local
 
