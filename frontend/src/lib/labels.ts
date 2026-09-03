@@ -34,6 +34,9 @@ export const ENTITY_LABEL: Record<string, string> = {
   focal_point: 'ponto focal',
   opportunity_focal_point: 'oportunidade',
   checklist_item: 'item de checklist',
+  tech_spec: 'ficha técnica',
+  tech_spec_item: 'item da ficha técnica',
+  milestone: 'marco da linha do tempo',
 };
 
 /** Tom semântico da ação (badge na Auditoria). */

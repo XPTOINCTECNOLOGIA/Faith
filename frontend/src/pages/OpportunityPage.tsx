@@ -28,17 +28,28 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DownloadIcon from '@mui/icons-material/Download';
+import EditIcon from '@mui/icons-material/Edit';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
+import { actionLabel, entityLabel } from '../lib/labels';
+import { DS, STATE_SOFT } from '../theme';
 import {
   FOCAL_PAPEL_LABEL,
   formatBRL,
@@ -52,7 +63,7 @@ import {
   type Stage,
 } from '../lib/types';
 
-const TABS = ['dados', 'checklist', 'documentos', 'historico', 'comentarios'] as const;
+const TABS = ['dados', 'ficha', 'checklist', 'documentos', 'historico', 'comentarios'] as const;
 
 export default function OpportunityPage() {
   const { id } = useParams();
@@ -183,9 +194,10 @@ export default function OpportunityPage() {
 
       <Tabs value={tab} onChange={(_e, next) => setParams({ tab: next })} sx={{ mb: 2 }}>
         <Tab value="dados" label="Dados" />
+        <Tab value="ficha" label="Ficha técnica" />
         <Tab value="checklist" label="Checklist" />
         <Tab value="documentos" label="Documentos" />
-        <Tab value="historico" label="Histórico" />
+        <Tab value="historico" label="Linha do tempo" />
         <Tab value="comentarios" label="Comentários" />
       </Tabs>
 
@@ -200,6 +212,7 @@ export default function OpportunityPage() {
           <DataTab data={data} />
         </>
       )}
+      {tab === 'ficha' && <TechSpecTab oppId={oppId} />}
       {tab === 'checklist' && <ChecklistTab oppId={oppId} />}
       {tab === 'documentos' && <DocumentsTab oppId={oppId} onChanged={invalidate} />}
       {tab === 'historico' && <HistoryTab oppId={oppId} />}
@@ -474,6 +487,354 @@ function DataTab({ data }: { data: Opportunity }) {
   );
 }
 
+/* ── Ficha Técnica Viva ──────────────────────────────────────────────────────
+   Descrição da solução + itens estruturados (categoria, quantidade, status
+   de ciclo de vida). Comercial, Engenharia, Projetos e Diretoria enxergam
+   a mesma realidade; toda alteração vai para a linha do tempo/auditoria. */
+
+const TS_CATEGORIAS = [
+  { value: 'equipamento', label: 'Equipamentos' },
+  { value: 'software', label: 'Software' },
+  { value: 'integracao', label: 'Integrações' },
+  { value: 'servico', label: 'Serviços' },
+  { value: 'infraestrutura', label: 'Infraestrutura' },
+  { value: 'outro', label: 'Outros' },
+] as const;
+
+const TS_STATUS = [
+  { value: 'previsto', label: 'Previsto', tone: 'neutral' },
+  { value: 'homologado', label: 'Homologado', tone: 'warning' },
+  { value: 'contratado', label: 'Contratado', tone: 'info' },
+  { value: 'implantado', label: 'Implantado', tone: 'success' },
+] as const;
+const tsStatus = (s: string) => TS_STATUS.find((x) => x.value === s) ?? TS_STATUS[0];
+
+interface TechSpecItem {
+  id: number; categoria: string; item: string; quantidade: number | null;
+  unidade: string; detalhe: string; status: string; ordem: number;
+}
+interface TechSpec {
+  descricao: string; updatedAt: string | null; updatedByName: string | null; items: TechSpecItem[];
+}
+
+const EMPTY_TS_ITEM = { categoria: 'equipamento', item: '', quantidade: '', unidade: 'un', detalhe: '', status: 'previsto' };
+
+function TechSpecTab({ oppId }: { oppId: number }) {
+  const { can } = useAuth();
+  const queryClient = useQueryClient();
+  const canEdit = can('opp.update');
+  const [descOpen, setDescOpen] = useState(false);
+  const [descDraft, setDescDraft] = useState('');
+  const [itemOpen, setItemOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<TechSpecItem | null>(null);
+  const [itemForm, setItemForm] = useState({ ...EMPTY_TS_ITEM });
+  const [error, setError] = useState<string | null>(null);
+
+  const spec = useQuery({
+    queryKey: ['tech-spec', oppId],
+    queryFn: () => api.get<TechSpec>(`/opportunities/${oppId}/tech-spec`),
+  });
+
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['tech-spec', oppId] }),
+      queryClient.invalidateQueries({ queryKey: ['history', oppId] }),
+    ]);
+
+  if (spec.isLoading) return <LinearProgress />;
+  const items = spec.data?.items ?? [];
+
+  async function saveDesc() {
+    setError(null);
+    try {
+      await api.post(`/opportunities/${oppId}/tech-spec`, { descricao: descDraft });
+      setDescOpen(false);
+      await invalidate();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao salvar a descrição.');
+    }
+  }
+
+  function openNewItem() {
+    setEditingItem(null);
+    setItemForm({ ...EMPTY_TS_ITEM });
+    setError(null);
+    setItemOpen(true);
+  }
+  function openEditItem(it: TechSpecItem) {
+    setEditingItem(it);
+    setItemForm({
+      categoria: it.categoria, item: it.item,
+      quantidade: it.quantidade == null ? '' : String(it.quantidade),
+      unidade: it.unidade, detalhe: it.detalhe, status: it.status,
+    });
+    setError(null);
+    setItemOpen(true);
+  }
+  async function saveItem() {
+    setError(null);
+    const body = {
+      categoria: itemForm.categoria,
+      item: itemForm.item.trim(),
+      quantidade: itemForm.quantidade === '' ? null : Number(itemForm.quantidade),
+      unidade: itemForm.unidade.trim() || 'un',
+      detalhe: itemForm.detalhe.trim(),
+      status: itemForm.status,
+    };
+    try {
+      if (editingItem) await api.patch(`/tech-spec-items/${editingItem.id}`, body);
+      else await api.post(`/opportunities/${oppId}/tech-spec/items`, body);
+      setItemOpen(false);
+      await invalidate();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao salvar o item.');
+    }
+  }
+  async function removeItem(it: TechSpecItem) {
+    await api.delete(`/tech-spec-items/${it.id}`);
+    await invalidate();
+  }
+
+  function exportCsv() {
+    const esc = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const head = 'categoria;item;quantidade;unidade;detalhe;status';
+    const lines = items.map((it) =>
+      [
+        TS_CATEGORIAS.find((c) => c.value === it.categoria)?.label ?? it.categoria,
+        esc(it.item),
+        it.quantidade == null ? '' : String(it.quantidade).replace('.', ','),
+        it.unidade, esc(it.detalhe), tsStatus(it.status).label,
+      ].join(';'),
+    );
+    const url = URL.createObjectURL(new Blob(['﻿' + [head, ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ficha-tecnica-oportunidade-${oppId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <Box>
+      {error && !descOpen && !itemOpen && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {/* Descrição da solução */}
+      <Box sx={{ border: `1px solid ${DS.border}`, borderRadius: 2, p: 2, mb: 2, bgcolor: 'background.paper' }}>
+        <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+          <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+            Descrição técnica da solução
+          </Typography>
+          {canEdit && (
+            <Button
+              size="small"
+              startIcon={<EditIcon fontSize="small" />}
+              onClick={() => {
+                setDescDraft(spec.data?.descricao ?? '');
+                setDescOpen(true);
+              }}
+            >
+              Editar
+            </Button>
+          )}
+        </Stack>
+        {spec.data?.descricao ? (
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+            {spec.data.descricao}
+          </Typography>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Ainda sem descrição — registre aqui o escopo, a arquitetura e as premissas da solução.
+          </Typography>
+        )}
+        {spec.data?.updatedAt && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            Atualizada por {spec.data.updatedByName ?? '—'} em{' '}
+            {new Date(spec.data.updatedAt).toLocaleString('pt-BR')}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Itens */}
+      <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+          Composição da solução {items.length > 0 && `· ${items.length} ite${items.length === 1 ? 'm' : 'ns'}`}
+        </Typography>
+        <Button size="small" startIcon={<FileDownloadOutlinedIcon />} onClick={exportCsv} disabled={items.length === 0}>
+          Exportar
+        </Button>
+        {canEdit && (
+          <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={openNewItem} sx={{ ml: 1 }}>
+            Adicionar item
+          </Button>
+        )}
+      </Stack>
+
+      {items.length === 0 && (
+        <Alert severity="info">
+          Nenhum item ainda. Estruture aqui equipamentos, software, integrações e serviços do projeto —
+          todos passam a enxergar a mesma realidade técnica.
+        </Alert>
+      )}
+
+      <Stack spacing={2}>
+        {TS_CATEGORIAS.filter((c) => items.some((i) => i.categoria === c.value)).map((c) => {
+          const group = items.filter((i) => i.categoria === c.value);
+          return (
+            <Box key={c.value}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+                <Typography variant="overline">{c.label}</Typography>
+                <Chip size="small" label={group.length} sx={{ height: 18, fontSize: 11 }} />
+              </Stack>
+              <Box sx={{ border: `1px solid ${DS.border}`, borderRadius: 2, overflow: 'hidden' }}>
+                <Table size="small">
+                  <TableBody>
+                    {group.map((it) => {
+                      const st = tsStatus(it.status);
+                      const tone = STATE_SOFT[st.tone];
+                      return (
+                        <TableRow key={it.id} hover>
+                          <TableCell sx={{ width: 110, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                            {it.quantidade != null ? (
+                              <b>
+                                {it.quantidade.toLocaleString('pt-BR')} {it.unidade}
+                              </b>
+                            ) : (
+                              '—'
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {it.item}
+                            </Typography>
+                            {it.detalhe && (
+                              <Typography variant="caption" color="text.secondary">
+                                {it.detalhe}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: 130 }}>
+                            <Chip size="small" label={st.label} sx={{ bgcolor: tone.bg, color: tone.color }} />
+                          </TableCell>
+                          {canEdit && (
+                            <TableCell align="right" sx={{ width: 90, whiteSpace: 'nowrap' }}>
+                              <IconButton size="small" onClick={() => openEditItem(it)} aria-label="Editar item">
+                                <EditIcon fontSize="inherit" />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => void removeItem(it)} aria-label="Remover item">
+                                <DeleteOutlineIcon fontSize="inherit" />
+                              </IconButton>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Box>
+            </Box>
+          );
+        })}
+      </Stack>
+
+      {/* Dialog descrição */}
+      <Dialog open={descOpen} onClose={() => setDescOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Descrição técnica da solução</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <TextField
+              multiline
+              minRows={6}
+              placeholder={'Escopo, arquitetura, premissas, dimensionamento…'}
+              value={descDraft}
+              onChange={(e) => setDescDraft(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDescOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={() => void saveDesc()}>
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog item */}
+      <Dialog open={itemOpen} onClose={() => setItemOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{editingItem ? 'Editar item' : 'Adicionar item'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <Stack direction="row" spacing={2}>
+              <TextField
+                select
+                label="Categoria"
+                value={itemForm.categoria}
+                onChange={(e) => setItemForm((f) => ({ ...f, categoria: e.target.value }))}
+                sx={{ flexGrow: 1 }}
+              >
+                {TS_CATEGORIAS.map((c) => (
+                  <MenuItem key={c.value} value={c.value}>
+                    {c.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Status"
+                value={itemForm.status}
+                onChange={(e) => setItemForm((f) => ({ ...f, status: e.target.value }))}
+                sx={{ width: 170 }}
+              >
+                {TS_STATUS.map((s) => (
+                  <MenuItem key={s.value} value={s.value}>
+                    {s.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+            <TextField
+              label="Item"
+              placeholder="ex.: Câmeras fixas 4K"
+              value={itemForm.item}
+              onChange={(e) => setItemForm((f) => ({ ...f, item: e.target.value }))}
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                type="number"
+                label="Quantidade (opcional)"
+                value={itemForm.quantidade}
+                onChange={(e) => setItemForm((f) => ({ ...f, quantidade: e.target.value }))}
+                sx={{ width: 200 }}
+                inputProps={{ min: 0.01, step: 'any' }}
+              />
+              <TextField
+                label="Unidade"
+                value={itemForm.unidade}
+                onChange={(e) => setItemForm((f) => ({ ...f, unidade: e.target.value }))}
+                sx={{ width: 140 }}
+              />
+            </Stack>
+            <TextField
+              multiline
+              minRows={2}
+              label="Detalhe / especificação (opcional)"
+              value={itemForm.detalhe}
+              onChange={(e) => setItemForm((f) => ({ ...f, detalhe: e.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setItemOpen(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={!itemForm.item.trim()} onClick={() => void saveItem()}>
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 function ChecklistTab({ oppId }: { oppId: number }) {
   const checklist = useQuery({
     queryKey: ['checklist', oppId],
@@ -691,29 +1052,214 @@ function DocumentsTab({ oppId, onChanged }: { oppId: number; onChanged: () => Pr
   );
 }
 
+/* ── Linha do tempo ──────────────────────────────────────────────────────────
+   História completa do projeto em um lugar só: marcos manuais (reuniões,
+   envios, decisões — o que acontece fora do sistema) mesclados com os
+   eventos automáticos da auditoria. Quem assume o projeto lê tudo aqui. */
+
+const MILESTONE_TIPOS = [
+  { value: 'reuniao', label: 'Reunião', Icon: GroupsOutlinedIcon },
+  { value: 'envio', label: 'Envio', Icon: SendOutlinedIcon },
+  { value: 'decisao', label: 'Decisão', Icon: GavelOutlinedIcon },
+  { value: 'demanda', label: 'Demanda', Icon: CampaignOutlinedIcon },
+  { value: 'entrega', label: 'Entrega', Icon: TaskAltOutlinedIcon },
+  { value: 'marco', label: 'Marco', Icon: FlagOutlinedIcon },
+] as const;
+const tipoDef = (t: string) => MILESTONE_TIPOS.find((x) => x.value === t) ?? MILESTONE_TIPOS[5];
+
+interface Milestone {
+  id: number; occurredOn: string; tipo: string; titulo: string;
+  descricao: string; createdBy: number | null; authorName: string;
+}
+
 function HistoryTab({ oppId }: { oppId: number }) {
+  const { can, me } = useAuth();
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Milestone | null>(null);
+  const [form, setForm] = useState({ occurredOn: '', tipo: 'reuniao', titulo: '', descricao: '' });
+  const [error, setError] = useState<string | null>(null);
+
   const history = useQuery({
     queryKey: ['history', oppId],
     queryFn: () =>
       api.get<{
         transitions: Array<{ id: number; movedAt: string; justification: string | null }>;
-        audit: Array<{ action: string; field: string | null; oldValue: string | null; newValue: string | null; occurredAt: string; actorName: string }>;
+        audit: Array<{ action: string; field: string | null; oldValue: string | null; newValue: string | null; occurredAt: string; actorName: string; entity: string }>;
+        milestones: Milestone[];
       }>(`/opportunities/${oppId}/history`),
   });
+
   if (history.isLoading) return <LinearProgress />;
+  const milestones = history.data?.milestones ?? [];
+  const audit = history.data?.audit ?? [];
+
+  // mescla cronológica (desc): marco ancora no fim do dia informado
+  type Entry =
+    | { kind: 'marco'; when: string; m: Milestone }
+    | { kind: 'sistema'; when: string; a: (typeof audit)[number] };
+  const entries: Entry[] = [
+    ...milestones.map((m0): Entry => ({ kind: 'marco', when: `${m0.occurredOn}T23:59:59`, m: m0 })),
+    ...audit.map((a): Entry => ({ kind: 'sistema', when: a.occurredAt, a })),
+  ].sort((x, y) => (x.when < y.when ? 1 : -1));
+
+  function openCreate() {
+    setEditing(null);
+    setForm({ occurredOn: new Date().toISOString().slice(0, 10), tipo: 'reuniao', titulo: '', descricao: '' });
+    setError(null);
+    setDialogOpen(true);
+  }
+  function openEdit(m0: Milestone) {
+    setEditing(m0);
+    setForm({ occurredOn: m0.occurredOn, tipo: m0.tipo, titulo: m0.titulo, descricao: m0.descricao });
+    setError(null);
+    setDialogOpen(true);
+  }
+  async function saveMilestone() {
+    setError(null);
+    try {
+      if (editing) await api.patch(`/milestones/${editing.id}`, form);
+      else await api.post(`/opportunities/${oppId}/milestones`, form);
+      setDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['history', oppId] });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao salvar o marco.');
+    }
+  }
+  async function removeMilestone(m0: Milestone) {
+    await api.delete(`/milestones/${m0.id}`);
+    await queryClient.invalidateQueries({ queryKey: ['history', oppId] });
+  }
+
+  const canMark = can('opp.comment') || can('opp.update');
+
   return (
-    <List dense>
-      {(history.data?.audit ?? []).map((row, index) => (
-        <ListItem key={index} divider>
-          <ListItemText
-            primary={`${row.action}${row.field ? ` · ${row.field}` : ''}${
-              row.oldValue || row.newValue ? `: ${row.oldValue ?? '∅'} → ${row.newValue ?? '∅'}` : ''
-            }`}
-            secondary={`${row.actorName} · ${new Date(row.occurredAt).toLocaleString('pt-BR')}`}
-          />
-        </ListItem>
-      ))}
-    </List>
+    <Box>
+      <Stack direction="row" alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+          Marcos registrados pela equipe + eventos automáticos do sistema, em ordem cronológica.
+        </Typography>
+        {canMark && (
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openCreate}>
+            Registrar marco
+          </Button>
+        )}
+      </Stack>
+
+      {entries.length === 0 && <Alert severity="info">Nada registrado ainda.</Alert>}
+
+      <Box sx={{ position: 'relative', pl: 4.5, '&::before': { content: '""', position: 'absolute', left: 15, top: 6, bottom: 6, width: 2, bgcolor: DS.border } }}>
+        <Stack spacing={1.25}>
+          {entries.map((e, i) => {
+            if (e.kind === 'marco') {
+              const { label, Icon } = tipoDef(e.m.tipo);
+              const own = me != null && e.m.createdBy === me.id;
+              return (
+                <Box key={`m-${e.m.id}`} sx={{ position: 'relative' }}>
+                  <Box sx={{ position: 'absolute', left: -36, top: 2, width: 32, height: 32, borderRadius: '50%', bgcolor: DS.primarySoft, border: `2px solid ${DS.ciano}`, display: 'grid', placeItems: 'center' }}>
+                    <Icon sx={{ fontSize: 16, color: DS.ardosia }} />
+                  </Box>
+                  <Box sx={{ border: `1px solid ${DS.border}`, borderRadius: 2, p: 1.5, bgcolor: 'background.paper' }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="subtitle2">{e.m.titulo}</Typography>
+                      <Chip size="small" label={label} sx={{ bgcolor: DS.primarySoft, color: DS.ardosia }} />
+                      <Box sx={{ flexGrow: 1 }} />
+                      {(own || can('opp.update')) && (
+                        <>
+                          <IconButton size="small" onClick={() => openEdit(e.m)} aria-label="Editar marco">
+                            <EditIcon fontSize="inherit" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => void removeMilestone(e.m)} aria-label="Remover marco">
+                            <DeleteOutlineIcon fontSize="inherit" />
+                          </IconButton>
+                        </>
+                      )}
+                    </Stack>
+                    {e.m.descricao && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                        {e.m.descricao}
+                      </Typography>
+                    )}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      {new Date(`${e.m.occurredOn}T12:00:00`).toLocaleDateString('pt-BR')} · {e.m.authorName}
+                    </Typography>
+                  </Box>
+                </Box>
+              );
+            }
+            const a = e.a;
+            return (
+              <Box key={`a-${i}`} sx={{ position: 'relative', py: 0.25 }}>
+                <Box sx={{ position: 'absolute', left: -25, top: 8, width: 10, height: 10, borderRadius: '50%', bgcolor: DS.aco }} />
+                <Typography variant="body2">
+                  <b>{a.actorName}</b> {actionLabel(a.action)} {entityLabel(a.entity)}
+                  {a.oldValue || a.newValue ? (
+                    <Typography component="span" variant="body2" color="text.secondary">
+                      {' '}
+                      — {a.oldValue ?? '∅'} → {a.newValue ?? '∅'}
+                    </Typography>
+                  ) : null}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(a.occurredAt).toLocaleString('pt-BR')}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Stack>
+      </Box>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{editing ? 'Editar marco' : 'Registrar marco'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <Stack direction="row" spacing={2}>
+              <TextField
+                type="date"
+                label="Data"
+                value={form.occurredOn}
+                onChange={(e) => setForm((f) => ({ ...f, occurredOn: e.target.value }))}
+                InputLabelProps={{ shrink: true }}
+                sx={{ width: 190 }}
+              />
+              <TextField
+                select
+                label="Tipo"
+                value={form.tipo}
+                onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}
+                sx={{ flexGrow: 1 }}
+              >
+                {MILESTONE_TIPOS.map((t) => (
+                  <MenuItem key={t.value} value={t.value}>
+                    {t.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+            <TextField
+              label="Título"
+              placeholder="ex.: SERPRO solicitou revisão do escopo"
+              value={form.titulo}
+              onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+            />
+            <TextField
+              multiline
+              minRows={2}
+              label="Descrição (opcional)"
+              value={form.descricao}
+              onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={!form.titulo.trim() || !form.occurredOn} onClick={() => void saveMilestone()}>
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 

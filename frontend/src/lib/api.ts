@@ -636,14 +636,18 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
 
     if ((x = m(/^\/opportunities\/(\d+)\/history$/))) {
       const oppId = Number(x[1]);
-      const [tr, au] = await Promise.all([
+      const [tr, au, ms] = await Promise.all([
         supabase.from('opp_stage_transitions').select('*').eq('opportunity_id', oppId)
           .order('moved_at', { ascending: false }),
         supabase.from('opp_audit_log')
           .select('action, field, old_value, new_value, occurred_at, actor:users(full_name), entity')
           .eq('opportunity_id', oppId).order('occurred_at', { ascending: false }).limit(500),
+        supabase.from('opp_milestones')
+          .select('id, occurred_on, tipo, titulo, descricao, created_by, author:users(full_name)')
+          .eq('opportunity_id', oppId).order('occurred_on', { ascending: false }).order('id', { ascending: false }),
       ]);
       if (tr.error) fail(tr.error);
+      if (ms.error) fail(ms.error);
       return {
         transitions: (tr.data ?? []).map((t: any) => ({
           id: Number(t.id), movedAt: t.moved_at, justification: t.justification,
@@ -651,6 +655,35 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
         audit: (au.data ?? []).map((a: any) => ({
           action: a.action, field: a.field, oldValue: a.old_value, newValue: a.new_value,
           occurredAt: a.occurred_at, actorName: a.actor?.full_name ?? '—', entity: a.entity,
+        })),
+        milestones: (ms.data ?? []).map((m0: any) => ({
+          id: Number(m0.id), occurredOn: m0.occurred_on, tipo: m0.tipo, titulo: m0.titulo,
+          descricao: m0.descricao, createdBy: num(m0.created_by),
+          authorName: m0.author?.full_name ?? '—',
+        })),
+      };
+    }
+
+    if ((x = m(/^\/opportunities\/(\d+)\/tech-spec$/))) {
+      const oppId = Number(x[1]);
+      const [sp, it] = await Promise.all([
+        supabase.from('opp_tech_specs')
+          .select('descricao, updated_at, editor:users(full_name)')
+          .eq('opportunity_id', oppId).maybeSingle(),
+        supabase.from('opp_tech_spec_items').select('*')
+          .eq('opportunity_id', oppId)
+          .order('categoria').order('ordem').order('id'),
+      ]);
+      if (sp.error) fail(sp.error);
+      if (it.error) fail(it.error);
+      return {
+        descricao: sp.data?.descricao ?? '',
+        updatedAt: sp.data?.updated_at ?? null,
+        updatedByName: (sp.data as any)?.editor?.full_name ?? null,
+        items: (it.data ?? []).map((i: any) => ({
+          id: Number(i.id), categoria: i.categoria, item: i.item,
+          quantidade: i.quantidade == null ? null : Number(i.quantidade),
+          unidade: i.unidade, detalhe: i.detalhe, status: i.status, ordem: i.ordem,
         })),
       };
     }
@@ -923,6 +956,39 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (error) fail(error);
       return mapStage(data);
     }
+
+    // Ficha técnica: upsert do cabeçalho (descrição da solução)
+    if ((x = m(/^\/opportunities\/(\d+)\/tech-spec$/))) {
+      const my = await me();
+      const { error } = await supabase.from('opp_tech_specs').upsert({
+        opportunity_id: Number(x[1]), descricao: body.descricao ?? '', updated_by: my.id,
+      });
+      if (error) fail(error);
+      return undefined; // auditoria via trigger opp_tech_specs_audit_tg
+    }
+    if ((x = m(/^\/opportunities\/(\d+)\/tech-spec\/items$/))) {
+      const my = await me();
+      const { data, error } = await supabase.from('opp_tech_spec_items').insert({
+        opportunity_id: Number(x[1]),
+        categoria: body.categoria, item: body.item,
+        quantidade: body.quantidade ?? null, unidade: body.unidade || 'un',
+        detalhe: body.detalhe ?? '', status: body.status ?? 'previsto',
+        ordem: body.ordem ?? 0, created_by: my.id,
+      }).select('id').single();
+      if (error) fail(error);
+      return { id: Number(data.id) };
+    }
+    // Linha do tempo: marco manual
+    if ((x = m(/^\/opportunities\/(\d+)\/milestones$/))) {
+      const my = await me();
+      const { data, error } = await supabase.from('opp_milestones').insert({
+        opportunity_id: Number(x[1]),
+        occurred_on: body.occurredOn, tipo: body.tipo ?? 'marco',
+        titulo: body.titulo, descricao: body.descricao ?? '', created_by: my.id,
+      }).select('id').single();
+      if (error) fail(error);
+      return { id: Number(data.id) };
+    }
   }
 
   if (method === 'PATCH') {
@@ -984,6 +1050,24 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (error) fail(error);
       return { id: linkId, principal: body.principal === true };
     }
+    if ((x = m(/^\/tech-spec-items\/(\d+)$/))) {
+      const patch: Record<string, unknown> = {};
+      for (const k of ['categoria', 'item', 'unidade', 'detalhe', 'status', 'ordem'] as const) {
+        if (k in body) patch[k] = body[k];
+      }
+      if ('quantidade' in body) patch.quantidade = body.quantidade ?? null;
+      const { error } = await supabase.from('opp_tech_spec_items').update(patch).eq('id', Number(x[1]));
+      if (error) fail(error);
+      return { id: Number(x[1]), ...body }; // auditoria via trigger
+    }
+    if ((x = m(/^\/milestones\/(\d+)$/))) {
+      const patch: Record<string, unknown> = {};
+      if ('occurredOn' in body) patch.occurred_on = body.occurredOn;
+      for (const k of ['tipo', 'titulo', 'descricao'] as const) if (k in body) patch[k] = body[k];
+      const { error } = await supabase.from('opp_milestones').update(patch).eq('id', Number(x[1]));
+      if (error) fail(error);
+      return { id: Number(x[1]), ...body }; // auditoria via trigger
+    }
     if ((x = m(/^\/checklist-templates\/(\d+)$/))) {
       const patch: Record<string, unknown> = {};
       if ('name' in body) patch.name = body.name;
@@ -1028,6 +1112,16 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (error) fail(error);
       // auditoria via trigger opp_radar_audit_tg
       return undefined;
+    }
+    if ((x = m(/^\/tech-spec-items\/(\d+)$/))) {
+      const { error } = await supabase.from('opp_tech_spec_items').delete().eq('id', Number(x[1]));
+      if (error) fail(error);
+      return undefined; // auditoria via trigger
+    }
+    if ((x = m(/^\/milestones\/(\d+)$/))) {
+      const { error } = await supabase.from('opp_milestones').delete().eq('id', Number(x[1]));
+      if (error) fail(error);
+      return undefined; // auditoria via trigger
     }
   }
 

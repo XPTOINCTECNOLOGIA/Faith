@@ -1,5 +1,23 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.2.0 — 2026-09-03
+
+- **Ficha Técnica Viva** (nova aba no projeto): descrição técnica da solução
+  (escopo/arquitetura/premissas, com autor e data) + composição estruturada
+  em itens — categoria (equipamentos, software, integrações, serviços,
+  infraestrutura), quantidade/unidade, detalhe e status de ciclo de vida
+  (previsto → homologado → contratado → implantado). Todos com `opp.view`
+  veem a mesma realidade; `opp.update` edita. Exportação CSV (vira BOM de
+  proposta). Migration 0081 (tabelas `opp_tech_specs`/`opp_tech_spec_items`
+  com RLS e auditoria por trigger).
+- **Linha do tempo do projeto** (aba Histórico repaginada): marcos manuais
+  registrados pela equipe (reunião, envio, decisão, demanda, entrega, marco
+  — com data retroativa) mesclados cronologicamente com os eventos
+  automáticos do sistema, em timeline visual. Quem assume o projeto entende
+  a história sem perguntar. Registrar marco pede só `opp.comment`; editar/
+  remover é do autor ou de quem mantém a oportunidade (`opp_milestones`,
+  auditada por trigger).
+
 ## 2.1.0 — 2026-09-03
 
 - **Tela de "sem acesso"**: conta autenticada sem nenhuma permissão `opp.*`
