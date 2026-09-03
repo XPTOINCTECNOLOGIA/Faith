@@ -1,6 +1,6 @@
 {
   "name": "portal-oportunidades-web",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "FAITH — Frontend do Portal de Oportunidades XPTO + SERPRO",
   "private": true,
   "type": "module",

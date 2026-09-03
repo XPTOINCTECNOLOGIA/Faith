@@ -1,5 +1,16 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 1.2.0 — 2026-09-03
+
+- **Dashboard no padrão visual do mapa**: KPI hero com o gradiente da marca
+  (valor total pipeline + radar), painel "Presença geográfica" com o próprio
+  mapa interativo embutido (clique leva ao Mapa Global), donut "Prospecção
+  por esfera" com paleta categórica validada (Federal/Estadual/Municipal),
+  gap entre fatias, tooltip por fatia, total no centro e legenda com valores;
+  barras por hunter e por estágio do pipeline; atividades recentes em faixa
+  de largura total com marcador da marca. Mapa compartilhado como componente
+  (GeoMap) e carregado sob demanda.
+
 ## 1.1.0 — 2026-09-03
 
 - **Mapa Global** (novo item do menu): mapa-múndi interativo (Leaflet + CARTO)
