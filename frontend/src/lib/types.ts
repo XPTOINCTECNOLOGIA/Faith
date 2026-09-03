@@ -140,6 +140,43 @@ export interface Page<T> {
   pageSize: number;
 }
 
+export interface FocalPointCoverage {
+  id: number;
+  uf: string;
+  municipio: string | null;
+}
+
+export interface FocalPoint {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  papel: 'responsavel_departamento' | 'divisao_publica' | 'outro';
+  regiao: number | null;
+  notes?: string | null;
+  active: boolean;
+  coverage: FocalPointCoverage[];
+}
+
+export interface OpportunityFocalPoint {
+  id: number;
+  principal: boolean;
+  autoAssigned: boolean;
+  assignedAt: string;
+  focalPoint: FocalPoint;
+}
+
+export const FOCAL_PAPEL_LABEL: Record<string, string> = {
+  responsavel_departamento: 'Responsável de Departamento',
+  divisao_publica: 'Divisão Pública da Região',
+  outro: 'Outro',
+};
+
+export const UFS = [
+  'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT',
+  'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',
+];
+
 export const LEAD_SOURCE_LABEL: Record<string, string> = {
   xpto: 'XPTO',
   parceiro: 'Parceiro',

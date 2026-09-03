@@ -15,6 +15,9 @@ erDiagram
 
     opp_clients ||--o{ opp_opportunities : "client_id"
     opp_partners ||--o{ opp_opportunities : "partner_id"
+    opp_focal_points ||--o{ opp_focal_point_coverage : "focal_point_id"
+    opp_focal_points ||--o{ opp_opportunity_focal_points : "focal_point_id"
+    opp_opportunities ||--o{ opp_opportunity_focal_points : "opportunity_id"
     opp_stages ||--o{ opp_opportunities : "stage_id"
     opp_stages ||--o{ opp_checklist_templates : "stage_id"
 
@@ -175,6 +178,32 @@ Edição não permitida; exclusão lógica (`deleted_at`) apenas pelo autor ou a
 | `occurred_at` | timestamptz default now() |
 
 Sem UPDATE/DELETE (revogados + trigger de proteção). Detalhes em `13-auditoria-compliance.md`.
+
+### 2.15 `opp_focal_points` — pontos focais SERPRO (0075)
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `name`, `email`, `phone` | texto | e-mail único (case-insensitive) quando informado |
+| `papel` | check | `responsavel_departamento` \| `divisao_publica` \| `outro` |
+| `regiao` | smallint NULL | região comercial SERPRO (1–4 na base atual) |
+| `active` | boolean | desativação lógica |
+
+### 2.16 `opp_focal_point_coverage` — cobertura territorial (0075)
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `focal_point_id` | FK cascade | |
+| `uf` | char(2) | obrigatória |
+| `municipio` | texto NULL | NULL = cobre o estado inteiro; único por (ponto focal, UF, município) |
+
+### 2.17 `opp_opportunity_focal_points` — responsáveis SERPRO da oportunidade (0075)
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `opportunity_id` / `focal_point_id` | FKs | único por par — N responsáveis por oportunidade |
+| `principal` | boolean | no máximo um principal por oportunidade (aplicação) |
+| `auto_assigned` | boolean | `true` quando criado pela RN-023 (trigger por UF/município do cliente) |
+| `assigned_by` / `assigned_at` | FK users / timestamptz | auditoria complementar em `opp_audit_log` (RN-024) |
 
 ## 3. Índices principais
 

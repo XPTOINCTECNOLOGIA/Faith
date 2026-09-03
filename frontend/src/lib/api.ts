@@ -334,6 +334,33 @@ async function kanban() {
   });
 }
 
+/* ── pontos focais SERPRO ──────────────────────────────────────────────────── */
+
+const FOCAL_SELECT = '*, coverage:opp_focal_point_coverage(id, uf, municipio)';
+
+function mapFocalPoint(f: any) {
+  return {
+    id: Number(f.id), name: f.name, email: f.email, phone: f.phone,
+    papel: f.papel, regiao: f.regiao == null ? null : Number(f.regiao),
+    notes: f.notes, active: f.active,
+    coverage: (f.coverage ?? [])
+      .map((c: any) => ({ id: Number(c.id), uf: c.uf, municipio: c.municipio }))
+      .sort((a: any, b: any) => a.uf.localeCompare(b.uf)),
+  };
+}
+
+async function saveFocalCoverage(focalPointId: number, coverage: Array<{ uf: string; municipio?: string | null }>) {
+  const del = await supabase.from('opp_focal_point_coverage').delete().eq('focal_point_id', focalPointId);
+  if (del.error) fail(del.error);
+  if (coverage.length) {
+    const rows = coverage.map((c) => ({
+      focal_point_id: focalPointId, uf: c.uf.toUpperCase(), municipio: c.municipio?.trim() || null,
+    }));
+    const ins = await supabase.from('opp_focal_point_coverage').insert(rows);
+    if (ins.error) fail(ins.error);
+  }
+}
+
 /* ── documentos (Storage + tabelas) ────────────────────────────────────────── */
 
 const BUCKET = 'opp-documents';
@@ -669,6 +696,30 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       };
     }
 
+    if (p === '/focal-points') {
+      let q = supabase.from('opp_focal_points').select(FOCAL_SELECT);
+      if (qp.get('all') !== 'true') q = q.eq('active', true);
+      const s = qp.get('search');
+      if (s) q = q.ilike('name', `%${s}%`);
+      const { data, error } = await q.order('name');
+      if (error) fail(error);
+      let items = (data ?? []).map(mapFocalPoint);
+      const uf = qp.get('uf');
+      if (uf) items = items.filter((fp) => fp.coverage.some((c: any) => c.uf === uf));
+      return items;
+    }
+    if ((x = m(/^\/opportunities\/(\d+)\/focal-points$/))) {
+      const { data, error } = await supabase.from('opp_opportunity_focal_points')
+        .select(`id, principal, auto_assigned, assigned_at, focalPoint:opp_focal_points(${FOCAL_SELECT})`)
+        .eq('opportunity_id', Number(x[1]))
+        .order('principal', { ascending: false }).order('assigned_at');
+      if (error) fail(error);
+      return (data ?? []).map((l: any) => ({
+        id: Number(l.id), principal: l.principal, autoAssigned: l.auto_assigned,
+        assignedAt: l.assigned_at, focalPoint: mapFocalPoint(l.focalPoint),
+      }));
+    }
+
     if (p === '/dashboard/summary') return dash.summary(qp);
     if (p === '/dashboard/by-stage') return dash.byStage(qp);
     if (p === '/dashboard/by-source') return dash.bySource(qp);
@@ -719,6 +770,30 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       return { id: Number(data.id), ...body };
     }
 
+    if (p === '/focal-points') {
+      const my = await me();
+      const { data, error } = await supabase.from('opp_focal_points').insert({
+        name: body.name, email: body.email?.trim() || null, phone: body.phone?.trim() || null,
+        papel: body.papel ?? 'outro', regiao: body.regiao ?? null, notes: body.notes ?? null,
+        created_by: my.id,
+      }).select('id').single();
+      if (error) fail(error);
+      const fpId = Number(data.id);
+      if (Array.isArray(body.coverage)) await saveFocalCoverage(fpId, body.coverage);
+      await audit([{ entity: 'focal_point', entityId: fpId, action: 'create', newValue: body.name }]);
+      return { id: fpId, ...body };
+    }
+    if ((x = m(/^\/opportunities\/(\d+)\/focal-points$/))) {
+      const my = await me();
+      const { data, error } = await supabase.from('opp_opportunity_focal_points').insert({
+        opportunity_id: Number(x[1]), focal_point_id: Number(body.focalPointId),
+        principal: body.principal ?? false, assigned_by: my.id,
+      }).select('id').single();
+      if (error) fail(error);
+      // auditoria do vínculo é feita pelo trigger opp_audit_focal_link_tg (RN-024)
+      return { id: Number(data.id) };
+    }
+
     if ((x = m(/^\/stages\/(\d+)\/checklist-templates$/))) {
       const { data, error } = await supabase.from('opp_checklist_templates').insert({
         stage_id: Number(x[1]), name: body.name, description: body.description ?? null,
@@ -750,6 +825,41 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       return undefined;
     }
     if ((x = m(/^\/opportunities\/(\d+)$/))) return updateOpportunity(Number(x[1]), body);
+    if ((x = m(/^\/focal-points\/(\d+)$/))) {
+      const fpId = Number(x[1]);
+      const patch: Record<string, unknown> = {};
+      if ('name' in body) patch.name = body.name;
+      if ('email' in body) patch.email = body.email?.trim() || null;
+      if ('phone' in body) patch.phone = body.phone?.trim() || null;
+      if ('papel' in body) patch.papel = body.papel;
+      if ('regiao' in body) patch.regiao = body.regiao ?? null;
+      if ('notes' in body) patch.notes = body.notes ?? null;
+      if ('active' in body) patch.active = body.active;
+      if (Object.keys(patch).length) {
+        const { error } = await supabase.from('opp_focal_points').update(patch).eq('id', fpId);
+        if (error) fail(error);
+      }
+      if (Array.isArray(body.coverage)) await saveFocalCoverage(fpId, body.coverage);
+      await audit([{ entity: 'focal_point', entityId: fpId, action: 'update', newValue: body.name }]);
+      return { id: fpId, ...body };
+    }
+    if ((x = m(/^\/opportunity-focal-points\/(\d+)$/))) {
+      const linkId = Number(x[1]);
+      if (body.principal === true) {
+        const { data: link, error: le } = await supabase.from('opp_opportunity_focal_points')
+          .select('opportunity_id').eq('id', linkId).single();
+        if (le) fail(le);
+        // um principal por oportunidade: desmarca os demais antes de marcar este
+        const { error: ue } = await supabase.from('opp_opportunity_focal_points')
+          .update({ principal: false })
+          .eq('opportunity_id', Number(link.opportunity_id)).eq('principal', true).neq('id', linkId);
+        if (ue) fail(ue);
+      }
+      const { error } = await supabase.from('opp_opportunity_focal_points')
+        .update({ principal: body.principal === true }).eq('id', linkId);
+      if (error) fail(error);
+      return { id: linkId, principal: body.principal === true };
+    }
     if ((x = m(/^\/checklist-templates\/(\d+)$/))) {
       const patch: Record<string, unknown> = {};
       if ('name' in body) patch.name = body.name;
@@ -775,6 +885,18 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
     if ((x = m(/^\/clients\/(\d+)$/))) {
       const { error } = await supabase.from('opp_clients').update({ active: false }).eq('id', Number(x[1]));
       if (error) fail(error);
+      return undefined;
+    }
+    if ((x = m(/^\/focal-points\/(\d+)$/))) {
+      const { error } = await supabase.from('opp_focal_points').update({ active: false }).eq('id', Number(x[1]));
+      if (error) fail(error);
+      await audit([{ entity: 'focal_point', entityId: Number(x[1]), action: 'deactivate' }]);
+      return undefined;
+    }
+    if ((x = m(/^\/opportunity-focal-points\/(\d+)$/))) {
+      const { error } = await supabase.from('opp_opportunity_focal_points').delete().eq('id', Number(x[1]));
+      if (error) fail(error);
+      // auditoria via trigger (RN-024)
       return undefined;
     }
   }

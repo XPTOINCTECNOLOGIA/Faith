@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Divider,
   Grid2 as Grid,
+  IconButton,
   LinearProgress,
   List,
   ListItem,
@@ -24,22 +25,29 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DownloadIcon from '@mui/icons-material/Download';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
 import {
+  FOCAL_PAPEL_LABEL,
   formatBRL,
   LEAD_SOURCE_LABEL,
   STATUS_LABEL,
   type ChecklistResponse,
+  type FocalPoint,
   type Opportunity,
+  type OpportunityFocalPoint,
   type PortalDocument,
   type Stage,
 } from '../lib/types';
@@ -151,7 +159,17 @@ export default function OpportunityPage() {
         <Tab value="comentarios" label="Comentários" />
       </Tabs>
 
-      {tab === 'dados' && <DataTab data={data} />}
+      {tab === 'dados' && (
+        <>
+          <FocalPointsSection
+            oppId={oppId}
+            clientUf={data.client?.uf ?? null}
+            canManage={can('opp.update') || can('opp.focal.manage')}
+          />
+          <Divider sx={{ my: 3 }} />
+          <DataTab data={data} />
+        </>
+      )}
       {tab === 'checklist' && <ChecklistTab oppId={oppId} />}
       {tab === 'documentos' && <DocumentsTab oppId={oppId} onChanged={invalidate} />}
       {tab === 'historico' && <HistoryTab oppId={oppId} />}
@@ -166,6 +184,178 @@ export default function OpportunityPage() {
           await invalidate();
         }}
       />
+    </Box>
+  );
+}
+
+function FocalPointsSection({
+  oppId,
+  clientUf,
+  canManage,
+}: {
+  oppId: number;
+  clientUf: string | null;
+  canManage: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const links = useQuery({
+    queryKey: ['opp-focal', oppId],
+    queryFn: () => api.get<OpportunityFocalPoint[]>(`/opportunities/${oppId}/focal-points`),
+  });
+  const focal = useQuery({
+    queryKey: ['focal-points', '', '', false],
+    queryFn: () => api.get<FocalPoint[]>('/focal-points'),
+    enabled: addOpen,
+  });
+
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['opp-focal', oppId] }),
+      queryClient.invalidateQueries({ queryKey: ['history', oppId] }),
+    ]);
+
+  async function add() {
+    setError(null);
+    try {
+      await api.post(`/opportunities/${oppId}/focal-points`, { focalPointId: Number(selected) });
+      setAddOpen(false);
+      setSelected('');
+      await refresh();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao vincular.');
+    }
+  }
+
+  async function remove(linkId: number) {
+    await api.delete(`/opportunity-focal-points/${linkId}`);
+    await refresh();
+  }
+
+  async function togglePrincipal(link: OpportunityFocalPoint) {
+    await api.patch(`/opportunity-focal-points/${link.id}`, { principal: !link.principal });
+    await refresh();
+  }
+
+  const linkedIds = new Set((links.data ?? []).map((l) => l.focalPoint.id));
+  const options = [...(focal.data ?? [])].sort((a, b) => {
+    const ca = clientUf && a.coverage.some((c) => c.uf === clientUf) ? 0 : 1;
+    const cb = clientUf && b.coverage.some((c) => c.uf === clientUf) ? 0 : 1;
+    return ca - cb || a.name.localeCompare(b.name);
+  });
+
+  return (
+    <Box>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+        <Typography variant="subtitle1" fontWeight={700}>
+          Responsáveis SERPRO (pontos focais)
+        </Typography>
+        {clientUf && <Chip size="small" variant="outlined" label={`UF do cliente: ${clientUf}`} />}
+        <Box sx={{ flexGrow: 1 }} />
+        {canManage && (
+          <Button size="small" variant="outlined" onClick={() => setAddOpen(true)}>
+            Vincular responsável
+          </Button>
+        )}
+      </Stack>
+      {links.isLoading && <LinearProgress />}
+      {!links.isLoading && (links.data ?? []).length === 0 && (
+        <Alert severity="info">
+          Nenhum responsável SERPRO vinculado — vincule quem cobre a UF do cliente.
+        </Alert>
+      )}
+      <Stack spacing={1}>
+        {(links.data ?? []).map((l) => (
+          <Stack
+            key={l.id}
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            flexWrap="wrap"
+            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 1.5, py: 1 }}
+          >
+            <Tooltip title={l.principal ? 'Responsável principal' : 'Marcar como principal'}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canManage}
+                  onClick={() => void togglePrincipal(l)}
+                  color={l.principal ? 'warning' : 'default'}
+                >
+                  {l.principal ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Box sx={{ minWidth: 200 }}>
+              <Typography fontWeight={600}>{l.focalPoint.name}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {l.focalPoint.email ?? ''} {l.focalPoint.phone ? `· ${l.focalPoint.phone}` : ''}
+              </Typography>
+            </Box>
+            <Chip size="small" variant="outlined" label={FOCAL_PAPEL_LABEL[l.focalPoint.papel] ?? l.focalPoint.papel} />
+            {l.autoAssigned && (
+              <Tooltip title="Vinculado automaticamente pela UF do cliente (RN-023)">
+                <Chip size="small" label="automático" sx={{ bgcolor: 'rgba(96,207,226,0.12)' }} />
+              </Tooltip>
+            )}
+            <Box sx={{ flexGrow: 1 }} />
+            {canManage && (
+              <Tooltip title="Remover vínculo">
+                <IconButton size="small" onClick={() => void remove(l.id)}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        ))}
+      </Stack>
+
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Vincular responsável SERPRO</DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <TextField
+            select
+            fullWidth
+            label="Ponto focal"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            sx={{ mt: 1 }}
+          >
+            {options.map((fp) => (
+              <MenuItem key={fp.id} value={String(fp.id)} disabled={linkedIds.has(fp.id)}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+                  <span>{fp.name}</span>
+                  <Typography variant="caption" color="text.secondary">
+                    {FOCAL_PAPEL_LABEL[fp.papel] ?? fp.papel}
+                  </Typography>
+                  <Box sx={{ flexGrow: 1 }} />
+                  {clientUf && fp.coverage.some((c) => c.uf === clientUf) && (
+                    <Chip size="small" label={`cobre ${clientUf}`} color="info" variant="outlined" />
+                  )}
+                  {linkedIds.has(fp.id) && <Chip size="small" label="já vinculado" variant="outlined" />}
+                </Stack>
+              </MenuItem>
+            ))}
+          </TextField>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            Novos pontos focais são cadastrados na área “Pontos Focais” do menu.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddOpen(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={!selected} onClick={() => void add()}>
+            Vincular
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

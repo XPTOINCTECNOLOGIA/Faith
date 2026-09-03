@@ -26,6 +26,7 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation } from 'react-router-dom';
@@ -69,6 +70,7 @@ export default function Layout() {
     { to: '/dashboard', label: 'Dashboard', icon: <AssessmentIcon />, permission: 'opp.dashboard.view' },
     { to: '/clientes', label: 'Clientes', icon: <BusinessIcon />, permission: 'opp.view' },
     { to: '/parceiros', label: 'Parceiros', icon: <HandshakeIcon />, permission: 'opp.view' },
+    { to: '/pontos-focais', label: 'Pontos Focais', icon: <SupportAgentIcon />, permission: 'opp.view' },
     { to: '/auditoria', label: 'Auditoria', icon: <FactCheckIcon />, permission: 'opp.audit.view' },
     { to: '/configuracao', label: 'Configuração', icon: <SettingsIcon />, permission: 'opp.config' },
   ];
@@ -226,7 +228,7 @@ export default function Layout() {
         <Divider />
         <Stack spacing={0.5} sx={{ p: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            FAITH · Portal de Oportunidades v0.1.1
+            FAITH · Portal de Oportunidades v0.2.0
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Sessão única com o Tetelestai (SSO)

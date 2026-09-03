@@ -8,6 +8,7 @@ import AdminPage from './pages/AdminPage';
 import AuditPage from './pages/AuditPage';
 import ClientsPage from './pages/ClientsPage';
 import DashboardPage from './pages/DashboardPage';
+import FocalPointsPage from './pages/FocalPointsPage';
 import KanbanPage from './pages/KanbanPage';
 import LoginPage from './pages/LoginPage';
 import NewOpportunityPage from './pages/NewOpportunityPage';
@@ -124,6 +125,7 @@ function Gate() {
         <Route path="/oportunidades/:id" element={<OpportunityPage />} />
         <Route path="/clientes" element={<ClientsPage />} />
         <Route path="/parceiros" element={<PartnersPage />} />
+        <Route path="/pontos-focais" element={<FocalPointsPage />} />
         <Route path="/auditoria" element={<AuditPage />} />
         <Route path="/configuracao" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
