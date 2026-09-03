@@ -63,7 +63,7 @@ import {
   type Stage,
 } from '../lib/types';
 
-const TABS = ['dados', 'ficha', 'checklist', 'documentos', 'historico', 'comentarios'] as const;
+const TABS = ['dados', 'maturidade', 'probabilidade', 'ficha', 'checklist', 'documentos', 'historico', 'comentarios'] as const;
 
 export default function OpportunityPage() {
   const { id } = useParams();
@@ -194,6 +194,8 @@ export default function OpportunityPage() {
 
       <Tabs value={tab} onChange={(_e, next) => setParams({ tab: next })} sx={{ mb: 2 }}>
         <Tab value="dados" label="Dados" />
+        <Tab value="maturidade" label="Maturidade" />
+        <Tab value="probabilidade" label="Probabilidade" />
         <Tab value="ficha" label="Ficha técnica" />
         <Tab value="checklist" label="Checklist" />
         <Tab value="documentos" label="Documentos" />
@@ -211,6 +213,10 @@ export default function OpportunityPage() {
           <Divider sx={{ my: 3 }} />
           <DataTab data={data} />
         </>
+      )}
+      {tab === 'maturidade' && <MaturityTab oppId={oppId} stageName={data.stage?.name ?? null} />}
+      {tab === 'probabilidade' && (
+        <ProbabilityTab oppId={oppId} data={data} onChanged={invalidate} />
       )}
       {tab === 'ficha' && <TechSpecTab oppId={oppId} />}
       {tab === 'checklist' && <ChecklistTab oppId={oppId} />}
@@ -484,6 +490,552 @@ function DataTab({ data }: { data: Opportunity }) {
       <Field label="Observações" value={data.observacoes} />
       {data.closureReason && <Field label="Motivo do encerramento" value={data.closureReason} />}
     </Grid>
+  );
+}
+
+/* ── Indicador de Probabilidade ──────────────────────────────────────────────
+   O valor OFICIAL é informado manualmente e restrito a opp.admin (RN-026,
+   trigger no banco). Ao lado, um score de referência transparente, calculado
+   dos dados que a plataforma já tem (maturidade, checklist, ficha técnica,
+   completude comercial, momentum) — semente das métricas futuras. */
+
+function Gauge({ value, color }: { value: number | null; color: string }) {
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  const v = value ?? 0;
+  return (
+    <Box sx={{ position: 'relative', width: 140, height: 140 }}>
+      <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label={`${value ?? '—'}%`}>
+        <circle cx="70" cy="70" r={R} fill="none" stroke={DS.border} strokeWidth="12" />
+        <circle
+          cx="70" cy="70" r={R} fill="none" stroke={color} strokeWidth="12"
+          strokeLinecap="round" strokeDasharray={`${(v / 100) * C} ${C}`}
+          transform="rotate(-90 70 70)"
+        />
+      </svg>
+      <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+        <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+          {value == null ? '—' : `${value}%`}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function ProbabilityTab({
+  oppId,
+  data,
+  onChanged,
+}: {
+  oppId: number;
+  data: Opportunity;
+  onChanged: () => Promise<unknown>;
+}) {
+  const { can } = useAuth();
+  const isAdmin = can('opp.admin');
+  const [editOpen, setEditOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const maturity = useQuery({
+    queryKey: ['maturity', oppId],
+    queryFn: () => api.get<MaturityRow[]>(`/opportunities/${oppId}/maturity`),
+  });
+  const checklist = useQuery({
+    queryKey: ['checklist', oppId],
+    queryFn: () => api.get<ChecklistResponse>(`/opportunities/${oppId}/checklist`),
+  });
+  const spec = useQuery({
+    queryKey: ['tech-spec', oppId],
+    queryFn: () => api.get<TechSpec>(`/opportunities/${oppId}/tech-spec`),
+  });
+  const stages = useQuery({ queryKey: ['stages'], queryFn: () => api.get<Stage[]>('/stages') });
+  const history = useQuery({
+    queryKey: ['history', oppId],
+    queryFn: () =>
+      api.get<{ audit: Array<{ occurredAt: string }> }>(`/opportunities/${oppId}/history`),
+  });
+
+  // ── fatores do score de referência (pesos somam 100) ──
+  const matRows = maturity.data ?? [];
+  const matAplic = matRows.filter((r) => r.status !== 'nao_aplicavel');
+  const matPct = matAplic.length
+    ? matAplic.filter((r) => r.status === 'concluida').length / matAplic.length
+    : 0;
+
+  const clItems = (checklist.data?.items ?? []).filter((i) => i.isCurrentStage);
+  const clPct = clItems.length
+    ? clItems.filter((i) => i.status === 'aprovado' || i.status === 'dispensado').length / clItems.length
+    : 0.5; // sem itens instanciados: neutro
+
+  const fichaPct =
+    ((spec.data?.descricao ? 1 : 0) + ((spec.data?.items.length ?? 0) > 0 ? 1 : 0)) / 2;
+
+  const comercialChecks = [
+    data.valorEstimado != null,
+    !!(data.prazoEstimado || data.expectedCloseDate),
+    !!data.gestorXpto,
+    !!data.gestorSerpro,
+    !!data.client,
+  ];
+  const comercialPct = comercialChecks.filter(Boolean).length / comercialChecks.length;
+
+  const lastActivity = history.data?.audit?.[0]?.occurredAt ?? null;
+  const idleDias = lastActivity ? diasDesde(lastActivity.slice(0, 10)) : 999;
+  const momentumPct = idleDias <= 7 ? 1 : idleDias <= 30 ? 0.5 : 0;
+
+  const maxPos = Math.max(1, ...(stages.data ?? []).filter((s) => !s.isTerminal).map((s) => s.position));
+  const estagioPct = (data.stage?.position ?? 0) / maxPos;
+
+  const fatores = [
+    { nome: 'Maturidade da esteira', peso: 30, pct: matPct },
+    { nome: 'Completude comercial', peso: 20, pct: comercialPct },
+    { nome: 'Checklist da etapa atual', peso: 15, pct: clPct },
+    { nome: 'Ficha técnica', peso: 15, pct: fichaPct },
+    { nome: 'Estágio no Pipeline', peso: 10, pct: estagioPct },
+    { nome: 'Momentum (atividade recente)', peso: 10, pct: momentumPct },
+  ];
+  const carregando = maturity.isLoading || checklist.isLoading || spec.isLoading || history.isLoading;
+  const score = Math.round(fatores.reduce((a, f) => a + f.peso * f.pct, 0));
+  const manual = data.probabilidade;
+  const delta = manual == null ? null : score - manual;
+
+  async function saveManual() {
+    setError(null);
+    const v = Number(draft);
+    if (!Number.isFinite(v) || v < 0 || v > 100) {
+      setError('Informe um valor entre 0 e 100.');
+      return;
+    }
+    try {
+      await api.patch(`/opportunities/${oppId}`, { probabilidade: Math.round(v) });
+      setEditOpen(false);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao salvar (RN-026: requer opp.admin).');
+    }
+  }
+
+  return (
+    <Grid container spacing={2}>
+      {/* Indicador oficial */}
+      <Grid size={{ xs: 12, md: 5 }}>
+        <Box sx={{ border: `1px solid ${DS.border}`, borderRadius: 2, p: 2.5, height: '100%', bgcolor: 'background.paper' }}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+            Indicador oficial de probabilidade
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+            Definido manualmente por administradores do módulo (RN-026).
+          </Typography>
+          <Stack alignItems="center" spacing={2}>
+            <Gauge value={manual} color={DS.ciano} />
+            {manual == null && (
+              <Typography variant="body2" color="text.secondary">
+                Ainda não informado.
+              </Typography>
+            )}
+            {isAdmin ? (
+              <Button
+                variant="contained"
+                startIcon={<EditIcon />}
+                onClick={() => {
+                  setDraft(manual == null ? '' : String(manual));
+                  setError(null);
+                  setEditOpen(true);
+                }}
+              >
+                {manual == null ? 'Informar probabilidade' : 'Ajustar'}
+              </Button>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                Somente SUPER ADMIN (opp.admin) pode alterar este indicador.
+              </Typography>
+            )}
+          </Stack>
+        </Box>
+      </Grid>
+
+      {/* Score de referência */}
+      <Grid size={{ xs: 12, md: 7 }}>
+        <Box sx={{ border: `1px solid ${DS.border}`, borderRadius: 2, p: 2.5, height: '100%', bgcolor: 'background.paper' }}>
+          <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mb: 0.5 }}>
+            <Typography variant="subtitle2">Score de referência (calculado)</Typography>
+            <Chip size="small" label="beta" sx={{ height: 18, fontSize: 11, bgcolor: DS.navySoft, color: DS.ardosia }} />
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+            Calculado dos dados da plataforma — apoia a decisão, não substitui o indicador oficial.
+          </Typography>
+          {carregando ? (
+            <LinearProgress />
+          ) : (
+            <>
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums', color: DS.ardosia }}>
+                  {score}%
+                </Typography>
+                {delta != null && (
+                  <Chip
+                    size="small"
+                    label={
+                      delta === 0
+                        ? 'alinhado ao oficial'
+                        : `${delta > 0 ? '+' : ''}${delta} pp vs. oficial`
+                    }
+                    sx={{
+                      bgcolor: Math.abs(delta) <= 10 ? STATE_SOFT.success.bg : STATE_SOFT.warning.bg,
+                      color: Math.abs(delta) <= 10 ? STATE_SOFT.success.color : STATE_SOFT.warning.color,
+                    }}
+                  />
+                )}
+              </Stack>
+              <Stack spacing={1.25}>
+                {fatores.map((f) => (
+                  <Box key={f.nome}>
+                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.25 }}>
+                      <Typography variant="caption">{f.nome}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {Math.round(f.peso * f.pct)}/{f.peso}
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      variant="determinate"
+                      value={f.pct * 100}
+                      sx={{ height: 6, '& .MuiLinearProgress-bar': { bgcolor: DS.ardosia } }}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+            </>
+          )}
+        </Box>
+      </Grid>
+
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Indicador de probabilidade</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <TextField
+              autoFocus
+              type="number"
+              label="Probabilidade (%)"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              inputProps={{ min: 0, max: 100, step: 5 }}
+              helperText={`Score de referência atual: ${score}%`}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={draft === ''} onClick={() => void saveManual()}>
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Grid>
+  );
+}
+
+/* ── Esteira de Maturidade ───────────────────────────────────────────────────
+   Segundo eixo de acompanhamento, distinto do funil comercial: em que
+   momento REAL o projeto está (demanda → expansão). Fases podem correr em
+   paralelo; a divergência entre o estágio comercial e a fase técnica é
+   informação de gestão exibida no cabeçalho. */
+
+const MAT_STATUS = [
+  { value: 'pendente', label: 'Pendente', tone: 'neutral' },
+  { value: 'em_andamento', label: 'Em andamento', tone: 'info' },
+  { value: 'concluida', label: 'Concluída', tone: 'success' },
+  { value: 'nao_aplicavel', label: 'Não se aplica', tone: 'neutral' },
+] as const;
+const matStatus = (s: string) => MAT_STATUS.find((x) => x.value === s) ?? MAT_STATUS[0];
+
+interface MaturityRow {
+  phaseId: number; code: string; name: string; position: number;
+  status: string; startedOn: string | null; completedOn: string | null;
+  responsavel: string; nota: string; updatedAt: string | null; updatedByName: string | null;
+}
+
+const hoje = () => new Date().toISOString().slice(0, 10);
+const diasDesde = (iso: string) =>
+  Math.max(0, Math.round((Date.now() - new Date(`${iso}T12:00:00`).getTime()) / 86_400_000));
+const diasEntre = (a: string, b: string) =>
+  Math.max(0, Math.round((new Date(`${b}T12:00:00`).getTime() - new Date(`${a}T12:00:00`).getTime()) / 86_400_000));
+
+function segColor(status: string) {
+  if (status === 'concluida') return DS.ardosia;
+  if (status === 'em_andamento') return DS.ciano;
+  if (status === 'nao_aplicavel') return 'transparent';
+  return DS.border;
+}
+
+function MaturityTab({ oppId, stageName }: { oppId: number; stageName: string | null }) {
+  const { can } = useAuth();
+  const queryClient = useQueryClient();
+  const canEdit = can('opp.update');
+  const [editRow, setEditRow] = useState<MaturityRow | null>(null);
+  const [form, setForm] = useState({ status: 'pendente', startedOn: '', completedOn: '', responsavel: '', nota: '' });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState<number | null>(null);
+
+  const maturity = useQuery({
+    queryKey: ['maturity', oppId],
+    queryFn: () => api.get<MaturityRow[]>(`/opportunities/${oppId}/maturity`),
+  });
+
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['maturity', oppId] }),
+      queryClient.invalidateQueries({ queryKey: ['history', oppId] }),
+    ]);
+
+  if (maturity.isLoading) return <LinearProgress />;
+  const rows = maturity.data ?? [];
+
+  const aplicaveis = rows.filter((r) => r.status !== 'nao_aplicavel');
+  const concluidas = aplicaveis.filter((r) => r.status === 'concluida');
+  const pct = aplicaveis.length ? Math.round((concluidas.length / aplicaveis.length) * 100) : 0;
+  const emAndamento = rows.filter((r) => r.status === 'em_andamento');
+  const faseAtual =
+    emAndamento[0] ??
+    aplicaveis.find((r) => r.status === 'pendente' && r.position > (concluidas.at(-1)?.position ?? 0)) ??
+    null;
+
+  async function save(row: MaturityRow, patch: Partial<typeof form>) {
+    setError(null);
+    setSaving(row.phaseId);
+    const body = {
+      status: patch.status ?? row.status,
+      startedOn: patch.startedOn !== undefined ? patch.startedOn || null : row.startedOn,
+      completedOn: patch.completedOn !== undefined ? patch.completedOn || null : row.completedOn,
+      responsavel: patch.responsavel ?? row.responsavel,
+      nota: patch.nota ?? row.nota,
+    };
+    // datas automáticas nas transições comuns
+    if (body.status === 'em_andamento' && !body.startedOn) body.startedOn = hoje();
+    if (body.status === 'concluida') {
+      if (!body.startedOn) body.startedOn = hoje();
+      if (!body.completedOn) body.completedOn = hoje();
+    }
+    if (body.status !== 'concluida') body.completedOn = patch.completedOn !== undefined ? patch.completedOn || null : null;
+    try {
+      await api.post(`/opportunities/${oppId}/maturity/${row.phaseId}`, body);
+      await invalidate();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao atualizar a fase.');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function avancar() {
+    const atual = emAndamento[0];
+    if (atual) await save(atual, { status: 'concluida' });
+    const proxima = rows.find(
+      (r) => r.status === 'pendente' && r.position > (atual?.position ?? concluidas.at(-1)?.position ?? 0),
+    );
+    if (proxima) await save(proxima, { status: 'em_andamento' });
+  }
+
+  function openEdit(row: MaturityRow) {
+    setEditRow(row);
+    setForm({
+      status: row.status, startedOn: row.startedOn ?? '', completedOn: row.completedOn ?? '',
+      responsavel: row.responsavel, nota: row.nota,
+    });
+    setError(null);
+  }
+
+  return (
+    <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {/* Cabeçalho: maturidade × estágio comercial */}
+      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 1.5 }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Maturidade do projeto
+          </Typography>
+          <Typography variant="h5" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {pct}%{' '}
+            <Typography component="span" variant="body2" color="text.secondary">
+              · {concluidas.length}/{aplicaveis.length} fases
+            </Typography>
+          </Typography>
+        </Box>
+        <Divider orientation="vertical" flexItem />
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Momento real (técnico)
+          </Typography>
+          <Typography variant="subtitle1">
+            {faseAtual ? faseAtual.name : concluidas.length === aplicaveis.length && aplicaveis.length > 0 ? 'Esteira concluída' : '—'}
+            {faseAtual?.status === 'em_andamento' && faseAtual.startedOn && (
+              <Typography component="span" variant="body2" color="text.secondary">
+                {' '}
+                · há {diasDesde(faseAtual.startedOn)} dia{diasDesde(faseAtual.startedOn) === 1 ? '' : 's'}
+              </Typography>
+            )}
+          </Typography>
+        </Box>
+        {stageName && (
+          <>
+            <Divider orientation="vertical" flexItem />
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Estágio comercial (Pipeline)
+              </Typography>
+              <Typography variant="subtitle1">{stageName}</Typography>
+            </Box>
+          </>
+        )}
+        <Box sx={{ flexGrow: 1 }} />
+        {canEdit && (
+          <Button variant="contained" size="small" onClick={() => void avancar()} disabled={saving != null || (!emAndamento.length && !rows.some((r) => r.status === 'pendente'))}>
+            Avançar fase
+          </Button>
+        )}
+      </Stack>
+
+      {/* Esteira visual */}
+      <Stack direction="row" spacing={0.5} sx={{ mb: 0.75 }}>
+        {rows.map((r) => (
+          <Tooltip key={r.phaseId} title={`${r.position}. ${r.name} — ${matStatus(r.status).label}`}>
+            <Box
+              sx={{
+                flexGrow: 1, height: 10, borderRadius: 99,
+                bgcolor: segColor(r.status),
+                border: r.status === 'nao_aplicavel' ? `1px dashed ${DS.borderStrong}` : 'none',
+                transition: 'background-color .2s',
+              }}
+            />
+          </Tooltip>
+        ))}
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2.5 }}>
+        <Box component="span" sx={{ display: 'inline-block', width: 10, height: 10, borderRadius: 99, bgcolor: DS.ardosia, mr: 0.5, verticalAlign: 'middle' }} /> concluída ·{' '}
+        <Box component="span" sx={{ display: 'inline-block', width: 10, height: 10, borderRadius: 99, bgcolor: DS.ciano, mx: 0.5, verticalAlign: 'middle' }} /> em andamento ·{' '}
+        <Box component="span" sx={{ display: 'inline-block', width: 10, height: 10, borderRadius: 99, bgcolor: DS.border, mx: 0.5, verticalAlign: 'middle' }} /> pendente ·{' '}
+        <Box component="span" sx={{ display: 'inline-block', width: 10, height: 10, borderRadius: 99, border: `1px dashed ${DS.borderStrong}`, mx: 0.5, verticalAlign: 'middle' }} /> não se aplica
+      </Typography>
+
+      {/* Fases */}
+      <Stack spacing={1}>
+        {rows.map((r) => {
+          const st = matStatus(r.status);
+          const tone = STATE_SOFT[st.tone];
+          const atual = faseAtual?.phaseId === r.phaseId;
+          return (
+            <Box
+              key={r.phaseId}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5, p: 1.25,
+                border: `1px solid ${atual ? DS.ciano : DS.border}`, borderRadius: 2,
+                bgcolor: atual ? DS.primarySoft : 'background.paper',
+                opacity: r.status === 'nao_aplicavel' ? 0.55 : 1,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                  display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 700,
+                  bgcolor: r.status === 'concluida' ? DS.ardosia : r.status === 'em_andamento' ? DS.ciano : DS.navySoft,
+                  color: r.status === 'concluida' ? '#fff' : DS.navy,
+                }}
+              >
+                {r.status === 'concluida' ? <CheckCircleIcon sx={{ fontSize: 17 }} /> : r.position}
+              </Box>
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={600}>
+                  {r.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                  {r.startedOn && `início ${new Date(`${r.startedOn}T12:00:00`).toLocaleDateString('pt-BR')}`}
+                  {r.completedOn && ` · conclusão ${new Date(`${r.completedOn}T12:00:00`).toLocaleDateString('pt-BR')}`}
+                  {r.startedOn && r.completedOn && ` (${diasEntre(r.startedOn, r.completedOn)} d)`}
+                  {r.responsavel && ` · ${r.responsavel}`}
+                  {r.nota && ` — ${r.nota}`}
+                </Typography>
+              </Box>
+              <Chip size="small" label={st.label} sx={{ bgcolor: tone.bg, color: tone.color, flexShrink: 0 }} />
+              {canEdit && (
+                <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                  {r.status === 'pendente' && (
+                    <Button size="small" disabled={saving === r.phaseId} onClick={() => void save(r, { status: 'em_andamento' })}>
+                      Iniciar
+                    </Button>
+                  )}
+                  {r.status === 'em_andamento' && (
+                    <Button size="small" disabled={saving === r.phaseId} onClick={() => void save(r, { status: 'concluida' })}>
+                      Concluir
+                    </Button>
+                  )}
+                  <IconButton size="small" onClick={() => openEdit(r)} aria-label={`Editar fase ${r.name}`}>
+                    <EditIcon fontSize="inherit" />
+                  </IconButton>
+                </Stack>
+              )}
+            </Box>
+          );
+        })}
+      </Stack>
+
+      {/* Dialog de edição da fase */}
+      <Dialog open={!!editRow} onClose={() => setEditRow(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{editRow?.name}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <TextField select label="Status" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
+              {MAT_STATUS.map((s) => (
+                <MenuItem key={s.value} value={s.value}>
+                  {s.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                type="date" label="Início" value={form.startedOn}
+                onChange={(e) => setForm((f) => ({ ...f, startedOn: e.target.value }))}
+                InputLabelProps={{ shrink: true }} sx={{ flexGrow: 1 }}
+              />
+              <TextField
+                type="date" label="Conclusão" value={form.completedOn}
+                onChange={(e) => setForm((f) => ({ ...f, completedOn: e.target.value }))}
+                InputLabelProps={{ shrink: true }} sx={{ flexGrow: 1 }}
+              />
+            </Stack>
+            <TextField
+              label="Responsável (opcional)" value={form.responsavel}
+              onChange={(e) => setForm((f) => ({ ...f, responsavel: e.target.value }))}
+            />
+            <TextField
+              multiline minRows={2} label="Nota (opcional)" value={form.nota}
+              onChange={(e) => setForm((f) => ({ ...f, nota: e.target.value }))}
+            />
+            {editRow?.updatedAt && (
+              <Typography variant="caption" color="text.secondary">
+                Última atualização: {editRow.updatedByName ?? '—'} em {new Date(editRow.updatedAt).toLocaleString('pt-BR')}
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditRow(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              if (!editRow) return;
+              await save(editRow, { ...form });
+              setEditRow(null);
+            }}
+          >
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 

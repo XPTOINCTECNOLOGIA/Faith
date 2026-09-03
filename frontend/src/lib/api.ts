@@ -664,6 +664,29 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       };
     }
 
+    if ((x = m(/^\/opportunities\/(\d+)\/maturity$/))) {
+      const oppId = Number(x[1]);
+      const [ph, st] = await Promise.all([
+        supabase.from('opp_maturity_phases').select('*').eq('active', true).order('position'),
+        supabase.from('opp_maturity_states')
+          .select('*, editor:users(full_name)').eq('opportunity_id', oppId),
+      ]);
+      if (ph.error) fail(ph.error);
+      if (st.error) fail(st.error);
+      const byPhase = new Map((st.data ?? []).map((s: any) => [Number(s.phase_id), s]));
+      return (ph.data ?? []).map((f: any) => {
+        const s = byPhase.get(Number(f.id));
+        return {
+          phaseId: Number(f.id), code: f.code, name: f.name, position: f.position,
+          status: s?.status ?? 'pendente',
+          startedOn: s?.started_on ?? null, completedOn: s?.completed_on ?? null,
+          responsavel: s?.responsavel ?? '', nota: s?.nota ?? '',
+          updatedAt: s?.updated_at ?? null,
+          updatedByName: s?.editor?.full_name ?? null,
+        };
+      });
+    }
+
     if ((x = m(/^\/opportunities\/(\d+)\/tech-spec$/))) {
       const oppId = Number(x[1]);
       const [sp, it] = await Promise.all([
@@ -977,6 +1000,22 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       }).select('id').single();
       if (error) fail(error);
       return { id: Number(data.id) };
+    }
+    // Esteira de maturidade: upsert do estado de uma fase
+    if ((x = m(/^\/opportunities\/(\d+)\/maturity\/(\d+)$/))) {
+      const my = await me();
+      const { error } = await supabase.from('opp_maturity_states').upsert(
+        {
+          opportunity_id: Number(x[1]), phase_id: Number(x[2]),
+          status: body.status,
+          started_on: body.startedOn ?? null, completed_on: body.completedOn ?? null,
+          responsavel: body.responsavel ?? '', nota: body.nota ?? '',
+          updated_by: my.id,
+        },
+        { onConflict: 'opportunity_id,phase_id' },
+      );
+      if (error) fail(error);
+      return undefined; // auditoria via trigger opp_maturity_states_audit_tg
     }
     // Linha do tempo: marco manual
     if ((x = m(/^\/opportunities\/(\d+)\/milestones$/))) {

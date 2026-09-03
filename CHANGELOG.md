@@ -1,5 +1,22 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.3.0 — 2026-09-03
+
+- **Esteira de Maturidade** (nova aba no projeto): segundo eixo de
+  acompanhamento com as 12 fases (Demanda identificada → Expansão/Renovação),
+  distinto do funil comercial. Cada fase tem status (pendente/em andamento/
+  concluída/não se aplica), datas de início/conclusão (com duração), 
+  responsável e nota; fases podem correr em paralelo. Esteira visual
+  segmentada, % de maturidade, comparativo "momento técnico × estágio
+  comercial", botão "Avançar fase" com datas automáticas. Mudanças de status
+  auditadas (migration 0082; catálogo de fases editável com `opp.config`).
+- **Indicador de Probabilidade** (nova aba): valor oficial informado
+  manualmente e restrito a `opp.admin` — RN-026 imposta por trigger no banco
+  (migration 0083), alterações auditadas. Ao lado, score de referência
+  calculado (beta) e transparente — maturidade 30, completude comercial 20,
+  checklist 15, ficha técnica 15, estágio 10, momentum 10 — com detalhamento
+  fator a fator e comparativo com o oficial (semente das métricas futuras).
+
 ## 2.2.0 — 2026-09-03
 
 - **Ficha Técnica Viva** (nova aba no projeto): descrição técnica da solução

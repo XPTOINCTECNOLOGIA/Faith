@@ -37,6 +37,7 @@ export const ENTITY_LABEL: Record<string, string> = {
   tech_spec: 'ficha técnica',
   tech_spec_item: 'item da ficha técnica',
   milestone: 'marco da linha do tempo',
+  maturity: 'fase de maturidade',
 };
 
 /** Tom semântico da ação (badge na Auditoria). */
