@@ -42,7 +42,7 @@ export default function GeoMap({
             height: 38,
             borderRadius: '50% 50% 50% 4px',
             transform: 'rotate(-45deg)',
-            background: `linear-gradient(135deg, ${DS.primary}, #3b82f6)`,
+            background: DS.ciano,
             border: '2.5px solid #ffffff',
             boxShadow: '0 6px 16px rgba(16,24,40,.35)',
             display: 'flex',
@@ -54,13 +54,14 @@ export default function GeoMap({
           '.faith-pin-inner:hover': { transform: 'rotate(-45deg) scale(1.12)' },
           '.faith-pin-inner span': {
             transform: 'rotate(45deg)',
-            color: '#fff',
+            color: DS.navy,
             fontWeight: 800,
             fontSize: 14,
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: 'Manrope, sans-serif',
           },
-          '.faith-pin-inner.is-won': { background: 'linear-gradient(135deg, #0f9d58, #12b76a)' },
-          '.leaflet-container': { fontFamily: 'Inter, sans-serif' },
+          '.faith-pin-inner.is-won': { background: DS.ardosia },
+          '.faith-pin-inner.is-won span': { color: DS.ciano },
+          '.leaflet-container': { fontFamily: 'Manrope, sans-serif' },
         }}
       />
       <MapContainer

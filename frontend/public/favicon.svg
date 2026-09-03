@@ -1,11 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#60cfe2"/>
-      <stop offset="100%" stop-color="#3b82f6"/>
-    </linearGradient>
-  </defs>
-  <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#g)"/>
-  <path d="M24 9.5c4.1 2.5 8.2 3.8 12 4.2v10.1c0 7.4-4.8 12.6-12 15.7-7.2-3.1-12-8.3-12-15.7V13.7c3.8-.4 7.9-1.7 12-4.2z" fill="none" stroke="#0b1323" stroke-width="3.2" stroke-linejoin="round"/>
-  <path d="M17.5 24.5l4.6 4.8 8.4-9.6" fill="none" stroke="#0b1323" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="FAITH — símbolo XPTO"><rect width="32" height="32" rx="5.6" fill="#101828"/><g transform="translate(5.12 9.52) scale(0.0253)"><g fill="#60CFE2"><path d="M0 0 H160 L429 256 L160 512 H0 L269 256 Z"/><path d="M859 0 H699 L430 256 L699 512 H859 L590 256 Z"/></g></g></svg>

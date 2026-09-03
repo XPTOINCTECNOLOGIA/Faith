@@ -73,32 +73,36 @@ export default function LoginPage() {
           justifyContent: 'center',
           gap: 4,
           px: 8,
-          bgcolor: '#0e1a33',
+          bgcolor: '#101828',
+          position: 'relative',
+          overflow: 'hidden',
           borderRight: '1px solid',
           borderColor: 'divider',
         }}
       >
-        <Box>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-            <FaithMark size={64} />
-            <Box>
-              <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: '0.16em', lineHeight: 1, color: '#ffffff' }}>
-                FAITH
-              </Typography>
-              <Typography variant="subtitle1" sx={{ color: '#8db4ff', fontWeight: 700 }}>
-                Portal de Oportunidades · XPTO + SERPRO
-              </Typography>
-            </Box>
-          </Stack>
+        <Box
+          component="img"
+          src="/brand/grafismo-constelacao.svg"
+          alt=""
+          aria-hidden
+          sx={{ position: 'absolute', right: -60, bottom: -40, width: 420, opacity: 0.5, pointerEvents: 'none' }}
+        />
+        <Box sx={{ position: 'relative' }}>
+          <Box
+            component="img"
+            src="/brand/faith-lockup-vertical.svg"
+            alt="FAITH by XPTO"
+            sx={{ width: 280, maxWidth: '80%', display: 'block', mb: 3 }}
+          />
           <Typography sx={{ maxWidth: 480, color: 'rgba(255,255,255,0.72)' }}>
-            Esteira de governança comercial e contratual da parceria: rastreabilidade total do lead à
-            operação.
+            Esteira de governança comercial e contratual da parceria XPTO × SERPRO:
+            rastreabilidade total do lead à operação.
           </Typography>
         </Box>
-        <Stack spacing={3}>
+        <Stack spacing={3} sx={{ position: 'relative' }}>
           {PILLARS.map((pillar) => (
             <Stack key={pillar.title} direction="row" spacing={2}>
-              <Box sx={{ color: '#8db4ff', mt: 0.25 }}>{pillar.icon}</Box>
+              <Box sx={{ color: '#60CFE2', mt: 0.25 }}>{pillar.icon}</Box>
               <Box>
                 <Typography fontWeight={700} sx={{ color: '#ffffff' }}>{pillar.title}</Typography>
                 <Typography variant="body2" sx={{ maxWidth: 440, color: 'rgba(255,255,255,0.66)' }}>

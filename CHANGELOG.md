@@ -1,5 +1,20 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.0.0 — 2026-09-03
+
+- **Rebrand oficial "FAITH by XPTO"** (kit de marca derivado do Brand Book
+  XPTO Inc. v3.0): paleta master (navy #101828, ciano #60CFE2 = ação, aço
+  #638CAD = apoio, ardósia #2B4469 = dados, offwhite, grafite), tipografia
+  Manrope (título 800), raios do kit (chip 9 / card 12), foco visível ciano.
+- **Assets oficiais**: lockups (compacto no header navy, vertical no login com
+  grafismo constelação), símbolo, favicon/ícones/apple-touch, manifest PWA e
+  imagem OG do kit — nada de marca redesenhado no código.
+- **Aplicação da marca**: appbar navy com busca em campo escuro e avatar-chip
+  ciano; botões primários ciano com texto navy; pins do mapa no chip da marca
+  (ciano/glifo navy; 100% no Pipeline = ardósia); KPI hero navy com dado em
+  ciano; barras de dados em ardósia; badges em ciano-suave/ciano-escuro.
+  Paletas de dados validadas (origem e esferas) permanecem.
+
 ## 1.3.0 — 2026-09-03
 
 - **Voltar etapa (RN-025)**: quem possui `opp.admin` (ex.: SUPER ADMIN) pode

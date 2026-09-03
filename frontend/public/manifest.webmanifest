@@ -1,0 +1,17 @@
+{
+  "name": "FAITH by XPTO",
+  "short_name": "FAITH",
+  "description": "Gestão de leads da parceria XPTO × SERPRO.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101828",
+  "theme_color": "#101828",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/apple-touch-icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/faith-icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/faith-icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

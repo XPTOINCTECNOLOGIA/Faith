@@ -44,7 +44,7 @@ const ESFERA_HEX: Record<string, string> = {
 };
 const esferaDe = (r: RadarOpportunity): string =>
   r.abrangencia === 'Internacional' ? 'Internacional' : r.esfera;
-const SINGLE = '#2a78d6';
+const SINGLE = '#2B4469'; // ardósia — dados (kit)
 const TRACK = '#e9e7e4';
 const SOURCE_ORDER = ['xpto', 'parceiro', 'serpro'] as const;
 
@@ -144,16 +144,16 @@ export default function DashboardPage() {
             sx={{
               height: '100%',
               border: 'none',
-              background: `linear-gradient(135deg, ${DS.primary}, #3b82f6)`,
+              background: DS.navy,
               color: '#ffffff',
-              boxShadow: '0 10px 24px rgba(26,86,219,.28)',
+              boxShadow: '0 10px 24px rgba(16,24,40,.30)',
             }}
           >
             <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
               <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.6, color: 'rgba(255,255,255,.78)' }}>
                 Valor total (pipeline + radar)
               </Typography>
-              <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums', my: 0.25, color: '#fff' }}>
+              <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums', my: 0.25, color: DS.ciano }}>
                 {formatBRL(pipelinePlusRadar)}
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.78)' }}>
@@ -318,7 +318,7 @@ export default function DashboardPage() {
           {(audit.data?.items ?? []).map((a) => (
             <Grid key={a.id} size={{ xs: 12, md: 6 }}>
               <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: DS.primary, mt: 0.9, flexShrink: 0 }} />
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: DS.ciano, mt: 0.9, flexShrink: 0 }} />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2" noWrap>
                     <b>{a.actorName ?? 'Sistema'}</b> {ACTION_LABEL[a.action] ?? a.action}{' '}
@@ -388,7 +388,7 @@ function ChartCard({
             {title}
           </Typography>
           {to && (
-            <Typography component={Link} to={to} variant="caption" sx={{ color: 'primary.main', fontWeight: 600, textDecoration: 'none' }}>
+            <Typography component={Link} to={to} variant="caption" sx={{ color: DS.ardosia, fontWeight: 700, textDecoration: 'none' }}>
               Ver tudo →
             </Typography>
           )}

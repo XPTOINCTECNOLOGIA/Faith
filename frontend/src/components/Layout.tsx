@@ -168,11 +168,11 @@ export default function Layout() {
                       py: 0.9,
                       justifyContent: mini ? 'center' : 'flex-start',
                       px: mini ? 1 : 1.5,
-                      color: selected ? 'primary.main' : 'text.primary',
+                      color: selected ? DS.ardosia : 'text.primary',
                       '&.Mui-selected': {
                         bgcolor: DS.primarySoft,
                         '&:hover': { bgcolor: DS.primarySoft },
-                        '& .MuiListItemIcon-root': { color: 'primary.main' },
+                        '& .MuiListItemIcon-root': { color: DS.ardosia },
                       },
                     }}
                   >
@@ -182,7 +182,7 @@ export default function Layout() {
                     {!mini && (
                       <ListItemText
                         primary={item.label}
-                        primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: selected ? 600 : 500 }}
+                        primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: selected ? 700 : 500 }}
                       />
                     )}
                   </ListItemButton>
@@ -203,7 +203,7 @@ export default function Layout() {
       {!mini && (
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            FAITH v1.3.0 · SSO Tetelestai
+            FAITH v2.0.0 · by XPTO · SSO Tetelestai
           </Typography>
         </Box>
       )}
@@ -218,7 +218,7 @@ export default function Layout() {
             <IconButton
               onClick={toggleCollapsed}
               aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' }, color: 'rgba(255,255,255,.85)' }}
             >
               {collapsed ? <MenuIcon /> : <MenuOpenIcon />}
             </IconButton>
@@ -226,13 +226,13 @@ export default function Layout() {
           <IconButton
             onClick={() => setMobileOpen(true)}
             aria-label="Abrir menu"
-            sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+            sx={{ display: { xs: 'inline-flex', sm: 'none' }, color: 'rgba(255,255,255,.85)' }}
           >
             <MenuIcon />
           </IconButton>
 
           <Box component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center' }}>
-            {collapsed ? <FaithMark size={32} /> : <FaithLogo size={32} subtitle="Portal de Oportunidades" />}
+            {collapsed ? <FaithMark size={34} /> : <FaithLogo size={38} variant="negativo" />}
           </Box>
 
           <Box component="form" onSubmit={submitSearch} sx={{ flexGrow: 1, maxWidth: 520, ml: 1.5 }}>
@@ -246,10 +246,17 @@ export default function Layout() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                      <SearchIcon fontSize="small" sx={{ color: 'rgba(255,255,255,.6)' }} />
                     </InputAdornment>
                   ),
-                  sx: { bgcolor: DS.surfaceMuted, borderRadius: 2 },
+                  sx: {
+                    bgcolor: '#0B121F',
+                    borderRadius: 2,
+                    color: '#fff',
+                    '& fieldset': { borderColor: DS.ardosia },
+                    '&:hover fieldset': { borderColor: DS.aco },
+                    '& input::placeholder': { color: 'rgba(255,255,255,.55)', opacity: 1 },
+                  },
                 },
               }}
             />
@@ -258,14 +265,14 @@ export default function Layout() {
           <Box sx={{ flexGrow: 1 }} />
 
           <Tooltip title="Notificações">
-            <IconButton onClick={(e) => setNotifAnchor(e.currentTarget)} aria-label="Notificações">
+            <IconButton onClick={(e) => setNotifAnchor(e.currentTarget)} aria-label="Notificações" sx={{ color: 'rgba(255,255,255,.85)' }}>
               <Badge badgeContent={unread} color="error">
                 <NotificationsNoneIcon />
               </Badge>
             </IconButton>
           </Tooltip>
 
-          <Divider orientation="vertical" flexItem sx={{ my: 1.5 }} />
+          <Divider orientation="vertical" flexItem sx={{ my: 1.5, borderColor: 'rgba(255,255,255,.16)' }} />
 
           <Box
             component="button"
@@ -281,17 +288,17 @@ export default function Layout() {
               borderRadius: 2,
               px: 1,
               py: 0.5,
-              '&:hover': { bgcolor: DS.surfaceMuted },
+              '&:hover': { bgcolor: 'rgba(255,255,255,.08)' },
             }}
           >
-            <Avatar sx={{ width: 30, height: 30, bgcolor: DS.primary, fontSize: 14, fontWeight: 700 }}>
+            <Avatar sx={{ width: 30, height: 30, bgcolor: DS.ciano, color: DS.navy, fontSize: 14, fontWeight: 800, borderRadius: '9px' }}>
               {me?.fullName?.[0] ?? '?'}
             </Avatar>
             <Box sx={{ textAlign: 'left', display: { xs: 'none', md: 'block' } }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.15 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.15, color: '#fff' }}>
                 {me?.displayName ?? me?.fullName}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>
+              <Typography variant="caption" sx={{ lineHeight: 1.1, color: DS.ciano, fontWeight: 600 }}>
                 {me?.profile}
               </Typography>
             </Box>
@@ -324,7 +331,7 @@ export default function Layout() {
               await queryClient.invalidateQueries({ queryKey: ['notifications'] });
             }}
           >
-            <Typography color="primary">Marcar todas como lidas</Typography>
+            <Typography sx={{ color: DS.ardosia, fontWeight: 600 }}>Marcar todas como lidas</Typography>
           </MenuItem>
         )}
       </Menu>
@@ -376,7 +383,7 @@ export default function Layout() {
         }}
       >
         <Toolbar sx={{ minHeight: 60 }}>
-          <FaithLogo size={30} subtitle={null} />
+          <FaithLogo size={34} variant="positivo" />
         </Toolbar>
         {navContent(false)}
       </Drawer>

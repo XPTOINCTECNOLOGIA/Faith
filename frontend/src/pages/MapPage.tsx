@@ -81,11 +81,11 @@ export default function MapPage() {
           <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
             <Stack direction="row" spacing={2} alignItems="center">
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: `linear-gradient(135deg, ${DS.primary}, #3b82f6)` }} />
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: DS.ciano }} />
                 <Typography variant="caption">Em prospecção</Typography>
               </Stack>
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #0f9d58, #12b76a)' }} />
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: DS.ardosia }} />
                 <Typography variant="caption">100% no Pipeline</Typography>
               </Stack>
             </Stack>
@@ -109,7 +109,7 @@ export default function MapPage() {
           >
             <CardContent sx={{ pb: 1.5, '&:last-child': { pb: 1.5 }, overflowY: 'auto' }}>
               <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                <PublicIcon fontSize="small" sx={{ color: 'primary.main' }} />
+                <PublicIcon fontSize="small" sx={{ color: DS.ardosia }} />
                 <Typography variant="h6" sx={{ flexGrow: 1 }}>
                   {sel.titulo}
                 </Typography>

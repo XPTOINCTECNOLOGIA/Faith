@@ -114,7 +114,7 @@ function Bandeira({ item, size = 22 }: { item: RadarOpportunity; size?: number }
       <Chip
         size="small"
         label={item.esfera === 'Estadual' ? item.uf : item.cidade.slice(0, 12)}
-        sx={{ bgcolor: DS.primarySoft, color: 'primary.main', fontWeight: 700, minWidth: 44 }}
+        sx={{ bgcolor: DS.primarySoft, color: DS.success, fontWeight: 700, minWidth: 44 }}
       />
     </Tooltip>
   );
@@ -371,7 +371,7 @@ export default function RadarPage() {
                         borderRadius: 2.5,
                         cursor: 'pointer',
                         boxShadow: DS.shadowXs,
-                        '&:hover': { borderColor: 'primary.main' },
+                        '&:hover': { borderColor: DS.aco },
                       }}
                     >
                       <Bandeira item={r} />

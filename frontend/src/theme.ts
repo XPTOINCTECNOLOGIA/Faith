@@ -2,52 +2,55 @@ import { createTheme } from '@mui/material';
 import { ptBR } from '@mui/material/locale';
 
 /**
- * FAITH Design System v1 — "Executivo claro"
+ * FAITH Design System v2 — Brand Book XPTO Inc. v3.0 (kit oficial da marca)
  *
- * Referências: Microsoft Fabric, Stripe Dashboard, Linear, Salesforce Lightning.
- * Princípios: superfície branca sobre canvas neutro, bordas sutis no lugar de
- * sombras, 1 cor primária com significado (ação/seleção), cores de status
- * semânticas, tipografia Inter com escala fixa e espaço generoso.
- *
- * Tokens
- *  canvas        #f6f7f9   fundo da aplicação
- *  surface       #ffffff   cartões, tabelas, sidebar, header
- *  border        #e4e7ec   divisões (1px, sempre sutil)
- *  text.primary  #101828   títulos e dados
- *  text.secondary#667085   apoio, labels, captions
- *  primary       #1a56db   azul corporativo (ação, seleção, links)
- *  success/warning/error/info — apenas para estado, nunca decoração
+ * Submarca endossada "FAITH by XPTO": herda a paleta master da XPTO.
+ * Ciano = ação · Aço = apoio · Ardósia = dados e camadas · Navy = appbar.
+ * Nenhuma cor fora da paleta master; derivados são tons/opacidade dela.
+ * Tipografia Manrope (título 800, rótulo 600, corpo 400, legenda 300).
+ * Estados: sucesso/informação são carregados por ciano e ardósia; alerta
+ * (#B4762A) e erro (#B4243A) entram apenas em feedback de sistema.
  */
 
 export const DS = {
-  canvas: '#f6f7f9',
-  surface: '#ffffff',
-  surfaceMuted: '#f9fafb',
-  border: '#e4e7ec',
-  borderStrong: '#d0d5dd',
-  textPrimary: '#101828',
-  textSecondary: '#667085',
-  primary: '#1a56db',
-  primaryDark: '#1642a8',
-  primarySoft: '#eef4ff',
-  success: '#12833f',
-  successSoft: '#e8f6ee',
-  warning: '#b54708',
-  warningSoft: '#fef4e6',
-  error: '#b42318',
-  errorSoft: '#fdecea',
-  info: '#175cd3',
-  infoSoft: '#eaf2fe',
-  shadowXs: '0 1px 2px rgba(16, 24, 40, 0.05)',
-  shadowMd: '0 8px 24px rgba(16, 24, 40, 0.10)',
+  // Paleta master XPTO
+  navy: '#101828',
+  ciano: '#60CFE2',
+  cianoHover: '#4FC2D6',
+  aco: '#638CAD',
+  ardosia: '#2B4469',
+  offwhite: '#F4F6FA',
+  grafite: '#14142B',
+  // Derivados de interface (kit faith-brand.css)
+  canvas: '#F4F6FA',
+  surface: '#FFFFFF',
+  surfaceMuted: '#EAF1F7',
+  border: '#E3E8F0',
+  borderStrong: '#638CAD',
+  textPrimary: '#14142B',
+  textSecondary: '#5B6B84',
+  primary: '#60CFE2',
+  primaryDark: '#4FC2D6',
+  primarySoft: '#DDEFF4',
+  navySoft: '#EAF1F7',
+  success: '#14556B',
+  successSoft: '#DDEFF4',
+  warning: '#B4762A',
+  warningSoft: '#F6EDDD',
+  error: '#B4243A',
+  errorSoft: '#F8E6EA',
+  info: '#2B4469',
+  infoSoft: '#EAF1F7',
+  shadowXs: '0 1px 2px rgba(16, 24, 40, 0.06)',
+  shadowMd: '0 8px 24px rgba(16, 24, 40, 0.12)',
 } as const;
 
 export const theme = createTheme(
   {
     palette: {
       mode: 'light',
-      primary: { main: DS.primary, dark: DS.primaryDark, contrastText: '#ffffff' },
-      secondary: { main: DS.textSecondary },
+      primary: { main: DS.primary, dark: DS.primaryDark, contrastText: DS.navy },
+      secondary: { main: DS.ardosia },
       background: { default: DS.canvas, paper: DS.surface },
       text: { primary: DS.textPrimary, secondary: DS.textSecondary },
       divider: DS.border,
@@ -56,13 +59,13 @@ export const theme = createTheme(
       error: { main: DS.error },
       info: { main: DS.info },
     },
-    shape: { borderRadius: 10 },
+    shape: { borderRadius: 9 },
     typography: {
-      fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
-      // Escala: Page title / Section / Card title / Label / Body / Caption
-      h4: { fontWeight: 700, fontSize: '1.5rem', letterSpacing: '-0.02em' },   // Page title
-      h5: { fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.01em' },
-      h6: { fontWeight: 600, fontSize: '1rem' },                               // Section title
+      fontFamily: '"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif',
+      // Escala do kit: h1 32 / h2 24 / h3 18 / corpo 15 / rótulo 13 / legenda 12
+      h4: { fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.01em' },   // Page title
+      h5: { fontWeight: 800, fontSize: '1.25rem' },
+      h6: { fontWeight: 800, fontSize: '1.125rem' },                           // Section title
       subtitle1: { fontWeight: 600, fontSize: '0.9375rem' },
       subtitle2: { fontWeight: 600, fontSize: '0.8125rem' },                   // Card title
       body1: { fontSize: '0.9375rem' },
@@ -90,9 +93,9 @@ export const theme = createTheme(
         defaultProps: { color: 'inherit', elevation: 0 },
         styleOverrides: {
           root: {
-            backgroundColor: DS.surface,
-            color: DS.textPrimary,
-            borderBottom: `1px solid ${DS.border}`,
+            backgroundColor: DS.navy,
+            color: '#ffffff',
+            borderBottom: 'none',
           },
         },
       },
@@ -106,6 +109,7 @@ export const theme = createTheme(
         styleOverrides: {
           root: {
             border: `1px solid ${DS.border}`,
+            borderRadius: 12,
             boxShadow: DS.shadowXs,
             backgroundImage: 'none',
           },
@@ -115,8 +119,9 @@ export const theme = createTheme(
       MuiButton: {
         defaultProps: { disableElevation: true },
         styleOverrides: {
-          root: { borderRadius: 8, paddingLeft: 14, paddingRight: 14 },
-          outlined: { borderColor: DS.borderStrong },
+          root: { borderRadius: 9, paddingLeft: 16, paddingRight: 16, fontWeight: 600 },
+          outlined: { borderColor: DS.aco, borderWidth: 1.5, color: DS.navy, '&:hover': { borderColor: DS.aco, backgroundColor: DS.navySoft } },
+          text: { color: DS.ardosia },
         },
       },
       MuiTextField: { defaultProps: { size: 'small' } },
@@ -124,7 +129,7 @@ export const theme = createTheme(
         styleOverrides: {
           root: {
             backgroundColor: DS.surface,
-            '& fieldset': { borderColor: DS.borderStrong },
+            '& fieldset': { borderColor: DS.border },
           },
         },
       },
@@ -172,7 +177,16 @@ export const theme = createTheme(
         },
       },
       MuiTab: {
-        styleOverrides: { root: { minHeight: 40, textTransform: 'none', fontWeight: 600 } },
+        styleOverrides: {
+          root: {
+            minHeight: 40,
+            textTransform: 'none',
+            fontWeight: 600,
+            // ciano é claro demais para texto sobre branco: seleção em navy,
+            // com o indicador ciano carregando o acento (regra do kit)
+            '&.Mui-selected': { color: DS.navy },
+          },
+        },
       },
       MuiTooltip: {
         styleOverrides: {

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240" role="img" aria-label="Constelação de dados">
+  <g fill="none" stroke="#638CAD" stroke-width="1.1" stroke-linecap="square">
+    <path d="M0 40 H60 L100 80 H164 L204 40 H262"/>
+    <path d="M0 150 H44 L84 110 H150 L190 150 H248 L288 110 H400"/>
+    <path d="M100 80 V128 L140 168 H210"/>
+    <path d="M262 40 L302 80 H400"/>
+    <path d="M44 150 V196 L84 236"/>
+    <path d="M164 80 L164 20" stroke-dasharray="3 5"/>
+    <path d="M210 168 L250 208 H330" stroke-dasharray="3 5"/>
+    <path d="M288 110 V64" stroke-dasharray="3 5"/>
+  </g>
+  <g fill="none" stroke="#638CAD" stroke-width="1" opacity=".75">
+    <path d="M330 176 l14 -8 14 8 v16 l-14 8 -14 -8 z"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="60" cy="40" r="3"/><circle cx="164" cy="80" r="3"/>
+    <circle cx="100" cy="128" r="3"/><circle cx="248" cy="150" r="3"/>
+    <circle cx="84" cy="110" r="3"/><circle cx="302" cy="80" r="3"/>
+    <circle cx="44" cy="196" r="3"/><circle cx="210" cy="168" r="3"/>
+  </g>
+  <g fill="#60CFE2">
+    <circle cx="288" cy="110" r="3.4"/>
+    <circle cx="288" cy="110" r="8" opacity=".18"/>
+  </g>
+  <g fill="#638CAD" opacity=".55">
+    <circle cx="356" cy="36" r="1.5"/><circle cx="366" cy="36" r="1.5"/><circle cx="376" cy="36" r="1.5"/>
+    <circle cx="356" cy="46" r="1.5"/><circle cx="366" cy="46" r="1.5"/><circle cx="376" cy="46" r="1.5"/>
+    <circle cx="356" cy="56" r="1.5"/><circle cx="366" cy="56" r="1.5"/><circle cx="376" cy="56" r="1.5"/>
+  </g>
+</svg>
