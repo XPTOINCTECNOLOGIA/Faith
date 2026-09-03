@@ -678,7 +678,7 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
     }
 
     if (p === '/audit') {
-      let q = supabase.from('opp_audit_log').select('*', { count: 'exact' });
+      let q = supabase.from('opp_audit_log').select('*, actor:users(full_name)', { count: 'exact' });
       if (qp.get('entity')) q = q.eq('entity', qp.get('entity')!);
       if (qp.get('action')) q = q.eq('action', qp.get('action')!);
       if (qp.get('opportunityId')) q = q.eq('opportunity_id', Number(qp.get('opportunityId')));
@@ -690,6 +690,7 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
           id: Number(a.id), entity: a.entity, entityId: Number(a.entity_id),
           opportunityId: num(a.opportunity_id), action: a.action, field: a.field,
           oldValue: a.old_value, newValue: a.new_value, actorId: Number(a.actor_id),
+          actorName: a.actor?.full_name ?? null,
           occurredAt: a.occurred_at,
         })),
         total: count ?? 0, page: 1, pageSize: size,

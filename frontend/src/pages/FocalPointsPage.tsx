@@ -210,7 +210,7 @@ export default function FocalPointsPage() {
                       key={c.id}
                       size="small"
                       label={c.municipio ? `${c.uf} · ${c.municipio}` : c.uf}
-                      sx={{ bgcolor: 'rgba(96,207,226,0.10)' }}
+                      sx={{ bgcolor: '#eef4ff', color: 'primary.main' }}
                     />
                   ))}
                   {fp.coverage.length === 0 && (

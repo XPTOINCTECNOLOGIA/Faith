@@ -73,7 +73,7 @@ export default function LoginPage() {
           justifyContent: 'center',
           gap: 4,
           px: 8,
-          bgcolor: '#101828',
+          bgcolor: '#0e1a33',
           borderRight: '1px solid',
           borderColor: 'divider',
         }}
@@ -82,15 +82,15 @@ export default function LoginPage() {
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
             <FaithMark size={64} />
             <Box>
-              <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: '0.16em', lineHeight: 1 }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: '0.16em', lineHeight: 1, color: '#ffffff' }}>
                 FAITH
               </Typography>
-              <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 700 }}>
+              <Typography variant="subtitle1" sx={{ color: '#8db4ff', fontWeight: 700 }}>
                 Portal de Oportunidades · XPTO + SERPRO
               </Typography>
             </Box>
           </Stack>
-          <Typography color="text.secondary" sx={{ maxWidth: 480 }}>
+          <Typography sx={{ maxWidth: 480, color: 'rgba(255,255,255,0.72)' }}>
             Esteira de governança comercial e contratual da parceria: rastreabilidade total do lead à
             operação.
           </Typography>
@@ -98,10 +98,10 @@ export default function LoginPage() {
         <Stack spacing={3}>
           {PILLARS.map((pillar) => (
             <Stack key={pillar.title} direction="row" spacing={2}>
-              <Box sx={{ color: 'primary.main', mt: 0.25 }}>{pillar.icon}</Box>
+              <Box sx={{ color: '#8db4ff', mt: 0.25 }}>{pillar.icon}</Box>
               <Box>
-                <Typography fontWeight={700}>{pillar.title}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440 }}>
+                <Typography fontWeight={700} sx={{ color: '#ffffff' }}>{pillar.title}</Typography>
+                <Typography variant="body2" sx={{ maxWidth: 440, color: 'rgba(255,255,255,0.66)' }}>
                   {pillar.text}
                 </Typography>
               </Box>

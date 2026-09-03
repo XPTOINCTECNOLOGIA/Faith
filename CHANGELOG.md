@@ -1,5 +1,25 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 1.0.0 — 2026-09-03
+
+- **Redesign completo (FAITH Design System v1 — "Executivo claro")**: tema
+  claro premium (canvas neutro, superfícies brancas, bordas sutis, Inter,
+  escala tipográfica fixa, azul corporativo #1a56db, status semânticos),
+  foco visível para navegação por teclado.
+- **Nova navegação**: sidebar enterprise em seções (Visão geral / Cadastros /
+  Governança) e header com busca global de oportunidades; rotas novas
+  (/ → Dashboard, /oportunidades, /pipeline, /orgaos) com redirects legados.
+- **Dashboard executivo em 3 linhas**: KPIs (total, valor pipeline+radar,
+  previsão de receita, conversão), distribuições (por estágio, esfera,
+  UF/país, hunter/origem) e listas operacionais (top oportunidades,
+  próximos vencimentos, atividades recentes).
+- **Oportunidades**: visões Lista agrupada e Tabela enterprise (sticky
+  header, ordenação, health score de completude, próxima ação) com drawer
+  executivo de detalhe (promover/editar/remover).
+- **Pipeline**: colunas em trilha neutra com indicador de cor da etapa e
+  cards com faixa da origem, cliente em destaque e progresso do checklist.
+- Login com painel de marca em navy e formulário claro.
+
 ## 0.4.0 — 2026-09-03
 
 - **Radar redesenhado**: lista enxuta agrupada por esfera (Federal/Estadual/

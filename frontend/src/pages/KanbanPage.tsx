@@ -26,6 +26,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
 import { formatBRL, LEAD_SOURCE_LABEL, type KanbanColumn } from '../lib/types';
+import { SOURCE_HEX } from '../theme';
 
 const SOURCE_COLOR: Record<string, 'primary' | 'warning' | 'success'> = {
   xpto: 'primary',
@@ -74,48 +75,52 @@ export default function KanbanPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={700}>
-          Pipeline comercial
-        </Typography>
+      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 0.5 }}>
+        <Typography variant="h4">Pipeline</Typography>
+        <Box sx={{ flexGrow: 1 }} />
         {can('opp.create') && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/oportunidades/nova')}>
             Nova oportunidade
           </Button>
         )}
       </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+        Esteira de governança — nenhuma oportunidade avança sem os documentos obrigatórios aprovados
+      </Typography>
 
-      <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
+      <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
         {columns.map((col, index) => {
           const next = columns[index + 1];
           return (
-            <Box key={col.stageId} sx={{ minWidth: 272, maxWidth: 272, flexShrink: 0 }}>
-              <Box
-                sx={{
-                  borderTop: 3,
-                  borderColor: col.color ?? 'divider',
-                  bgcolor: 'background.paper',
-                  borderRadius: 1,
-                  p: 1.5,
-                  mb: 1,
-                }}
-              >
-                <Typography variant="subtitle2" fontWeight={700}>
+            <Box
+              key={col.stageId}
+              sx={{
+                minWidth: 276,
+                maxWidth: 276,
+                flexShrink: 0,
+                bgcolor: '#f0f2f5',
+                borderRadius: 2.5,
+                p: 1,
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1, py: 0.75 }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: col.color ?? 'divider' }} />
+                <Typography variant="subtitle2" sx={{ flexGrow: 1 }} noWrap>
                   {col.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {col.count} oportunidade{col.count === 1 ? '' : 's'} · {formatBRL(col.totalValue)}
+                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                  {col.count} · {formatBRL(col.totalValue)}
                 </Typography>
-              </Box>
+              </Stack>
 
               <Stack spacing={1}>
                 {col.cards.map((card) => (
-                  <Card key={card.id} variant="outlined">
+                  <Card key={card.id} sx={{ borderLeft: '3px solid', borderLeftColor: SOURCE_HEX[card.leadSource] ?? 'divider' }}>
                     <CardActionArea component={Link} to={`/oportunidades/${card.id}`} sx={{ p: 1.5 }}>
                       <Stack spacing={0.75}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="subtitle2" fontWeight={700}>
-                            {card.code}
+                          <Typography variant="body2" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
+                            {card.clientName ?? '—'}
                           </Typography>
                           {card.overdue && (
                             <Tooltip title="Prazo de fechamento vencido">
@@ -123,8 +128,8 @@ export default function KanbanPage() {
                             </Tooltip>
                           )}
                         </Stack>
-                        <Typography variant="body2" noWrap>
-                          {card.clientName ?? '—'}
+                        <Typography variant="caption" color="text.secondary">
+                          {card.code}
                         </Typography>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography variant="body2" fontWeight={600}>
@@ -143,7 +148,7 @@ export default function KanbanPage() {
                             variant="determinate"
                             value={card.checklist.percent}
                             color={card.checklist.percent === 100 ? 'success' : 'primary'}
-                            sx={{ borderRadius: 1, height: 6, bgcolor: 'rgba(139, 155, 176, 0.2)' }}
+                            sx={{ borderRadius: 1, height: 5 }}
                           />
                         </Tooltip>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">

@@ -4,142 +4,170 @@ import {
   Avatar,
   Badge,
   Box,
-  Button,
-  Chip,
   Divider,
   Drawer,
   IconButton,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Menu,
   MenuItem,
   Stack,
+  TextField,
   Toolbar,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import BusinessIcon from '@mui/icons-material/Business';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
+import GridViewIcon from '@mui/icons-material/GridView';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import LogoutIcon from '@mui/icons-material/Logout';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import SettingsIcon from '@mui/icons-material/Settings';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import SearchIcon from '@mui/icons-material/Search';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
-import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
+import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { FaithLogo } from './FaithLogo';
 import { api } from '../lib/api';
-import type { Notification, Opportunity, Page } from '../lib/types';
+import type { Notification } from '../lib/types';
+import { DS } from '../theme';
 
-const DRAWER_WIDTH = 248;
+const DRAWER_WIDTH = 240;
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  permission: string;
+}
+
+const NAV: Array<{ section: string; items: NavItem[] }> = [
+  {
+    section: 'Visão geral',
+    items: [
+      { to: '/', label: 'Dashboard', icon: <GridViewIcon fontSize="small" />, permission: 'opp.view' },
+      { to: '/oportunidades', label: 'Oportunidades', icon: <TravelExploreIcon fontSize="small" />, permission: 'opp.view' },
+      { to: '/pipeline', label: 'Pipeline', icon: <ViewKanbanOutlinedIcon fontSize="small" />, permission: 'opp.view' },
+    ],
+  },
+  {
+    section: 'Cadastros',
+    items: [
+      { to: '/orgaos', label: 'Órgãos e Clientes', icon: <AccountBalanceIcon fontSize="small" />, permission: 'opp.view' },
+      { to: '/parceiros', label: 'Parceiros', icon: <HandshakeIcon fontSize="small" />, permission: 'opp.view' },
+      { to: '/pontos-focais', label: 'Pontos Focais', icon: <SupportAgentIcon fontSize="small" />, permission: 'opp.view' },
+    ],
+  },
+  {
+    section: 'Governança',
+    items: [
+      { to: '/auditoria', label: 'Auditoria', icon: <FactCheckIcon fontSize="small" />, permission: 'opp.audit.view' },
+      { to: '/configuracao', label: 'Configuração', icon: <SettingsOutlinedIcon fontSize="small" />, permission: 'opp.config' },
+    ],
+  },
+];
 
 export default function Layout() {
   const { me, can, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
   const [userAnchor, setUserAnchor] = useState<HTMLElement | null>(null);
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const notifications = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Notification[]>('/notifications?unread=true'),
     refetchInterval: 60_000,
   });
-
-  const openCount = useQuery({
-    queryKey: ['open-count'],
-    queryFn: () => api.get<Page<Opportunity>>('/opportunities?status=aberta&pageSize=1'),
-    refetchInterval: 60_000,
-    enabled: can('opp.view'),
-  });
-
   const unread = notifications.data?.length ?? 0;
 
-  const NAV = [
-    {
-      to: '/',
-      label: 'Pipeline',
-      icon: <ViewKanbanIcon />,
-      permission: 'opp.view',
-      badge: openCount.data?.total,
-    },
-    { to: '/radar', label: 'Radar', icon: <TravelExploreIcon />, permission: 'opp.view' },
-    { to: '/dashboard', label: 'Dashboard', icon: <AssessmentIcon />, permission: 'opp.dashboard.view' },
-    { to: '/clientes', label: 'Clientes', icon: <BusinessIcon />, permission: 'opp.view' },
-    { to: '/parceiros', label: 'Parceiros', icon: <HandshakeIcon />, permission: 'opp.view' },
-    { to: '/pontos-focais', label: 'Pontos Focais', icon: <SupportAgentIcon />, permission: 'opp.view' },
-    { to: '/auditoria', label: 'Auditoria', icon: <FactCheckIcon />, permission: 'opp.audit.view' },
-    { to: '/configuracao', label: 'Configuração', icon: <SettingsIcon />, permission: 'opp.config' },
-  ];
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    navigate(`/oportunidades?q=${encodeURIComponent(globalSearch.trim())}`);
+  }
+
+  const isSelected = (to: string) =>
+    to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar position="fixed" elevation={0} sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ gap: 2 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center" component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
-            <FaithLogo size={34} subtitle={null} />
-            <Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
-              Portal de Oportunidades{' '}
-              <Typography component="span" variant="body2" sx={{ color: 'primary.main', fontWeight: 700 }}>
-                XPTO + SERPRO
-              </Typography>
-            </Typography>
-          </Stack>
+      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
+        <Toolbar sx={{ gap: 2, minHeight: 60 }}>
+          <Box component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit', width: DRAWER_WIDTH - 24 }}>
+            <FaithLogo size={32} subtitle="Portal de Oportunidades" />
+          </Box>
+
+          <Box component="form" onSubmit={submitSearch} sx={{ flexGrow: 1, maxWidth: 520 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Buscar oportunidades, órgãos, objetos…"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                  sx: { bgcolor: DS.surfaceMuted, borderRadius: 2 },
+                },
+              }}
+            />
+          </Box>
 
           <Box sx={{ flexGrow: 1 }} />
 
-          <Chip
-            size="small"
-            variant="outlined"
-            sx={{ borderColor: 'divider', color: 'text.secondary' }}
-            label={
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    bgcolor: 'success.main',
-                    '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } },
-                    animation: 'pulse 2s infinite',
-                  }}
-                />
-                <span>ONLINE · SSO CORPORATIVO</span>
-              </Stack>
-            }
-          />
+          <Tooltip title="Notificações">
+            <IconButton onClick={(e) => setNotifAnchor(e.currentTarget)} aria-label="Notificações">
+              <Badge badgeContent={unread} color="error">
+                <NotificationsNoneIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
 
-          <IconButton color="inherit" onClick={(e) => setNotifAnchor(e.currentTarget)} aria-label="Notificações">
-            <Badge badgeContent={unread} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
+          <Divider orientation="vertical" flexItem sx={{ my: 1.5 }} />
 
-          <Button
-            onClick={(e) => setUserAnchor(e.currentTarget)}
-            color="inherit"
+          <Box
+            component="button"
+            onClick={(e: React.MouseEvent<HTMLElement>) => setUserAnchor(e.currentTarget)}
             aria-label="Conta"
-            sx={{ textTransform: 'none', px: 1.25, borderRadius: 2 }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              borderRadius: 2,
+              px: 1,
+              py: 0.5,
+              '&:hover': { bgcolor: DS.surfaceMuted },
+            }}
           >
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 800 }}>
-                {me?.fullName?.[0] ?? '?'}
-              </Avatar>
-              <Stack alignItems="flex-start" sx={{ display: { xs: 'none', md: 'flex' } }}>
-                <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
-                  {me?.displayName ?? me?.fullName}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 700, lineHeight: 1.1 }}>
-                  {me?.profile?.toUpperCase()}
-                </Typography>
-              </Stack>
-            </Stack>
-          </Button>
+            <Avatar sx={{ width: 30, height: 30, bgcolor: DS.primary, fontSize: 14, fontWeight: 700 }}>
+              {me?.fullName?.[0] ?? '?'}
+            </Avatar>
+            <Box sx={{ textAlign: 'left', display: { xs: 'none', md: 'block' } }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.15 }}>
+                {me?.displayName ?? me?.fullName}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>
+                {me?.profile}
+              </Typography>
+            </Box>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -191,6 +219,7 @@ export default function Layout() {
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
+          display: { xs: 'none', sm: 'block' },
           [`& .MuiDrawer-paper`]: {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
@@ -199,56 +228,74 @@ export default function Layout() {
           },
         }}
       >
-        <Toolbar />
-        <List sx={{ px: 1, pt: 1.5 }}>
-          {NAV.filter((item) => can(item.permission)).map((item) => (
-            <ListItemButton
-              key={item.to}
-              component={Link}
-              to={item.to}
-              selected={location.pathname === item.to}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                '&.Mui-selected': {
-                  bgcolor: 'rgba(96, 207, 226, 0.12)',
-                  color: 'primary.main',
-                  '& .MuiListItemIcon-root': { color: 'primary.main' },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
-              {item.badge != null && item.badge > 0 && (
-                <Chip size="small" label={item.badge} sx={{ bgcolor: 'rgba(96,207,226,0.16)', color: 'primary.main' }} />
-              )}
-            </ListItemButton>
-          ))}
-        </List>
-
-        <Box sx={{ flexGrow: 1 }} />
+        <Toolbar sx={{ minHeight: 60 }} />
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1.25, pt: 1 }}>
+          {NAV.map((group) => {
+            const visible = group.items.filter((i) => can(i.permission));
+            if (!visible.length) return null;
+            return (
+              <List
+                key={group.section}
+                dense
+                subheader={
+                  <ListSubheader
+                    disableSticky
+                    sx={{
+                      bgcolor: 'transparent',
+                      typography: 'overline',
+                      lineHeight: 2.4,
+                      px: 1.25,
+                    }}
+                  >
+                    {group.section}
+                  </ListSubheader>
+                }
+                sx={{ mb: 0.5 }}
+              >
+                {visible.map((item) => {
+                  const selected = isSelected(item.to);
+                  return (
+                    <ListItemButton
+                      key={item.to}
+                      component={Link}
+                      to={item.to}
+                      selected={selected}
+                      sx={{
+                        mb: 0.25,
+                        py: 0.75,
+                        color: selected ? 'primary.main' : 'text.primary',
+                        '&.Mui-selected': {
+                          bgcolor: DS.primarySoft,
+                          '&:hover': { bgcolor: DS.primarySoft },
+                          '& .MuiListItemIcon-root': { color: 'primary.main' },
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 34, color: 'text.secondary' }}>{item.icon}</ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: selected ? 600 : 500 }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </List>
+            );
+          })}
+        </Box>
         <Divider />
-        <Stack spacing={0.5} sx={{ p: 2 }}>
-          <Typography variant="caption" color="text.secondary">
-            FAITH · Portal de Oportunidades v0.4.0
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            FAITH v1.0.0 · SSO Tetelestai
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Sessão única com o Tetelestai (SSO)
-          </Typography>
-          <Button
-            size="small"
-            startIcon={<LogoutIcon />}
-            onClick={() => void signOut()}
-            sx={{ alignSelf: 'flex-start', mt: 0.5, color: 'text.secondary' }}
-          >
-            Encerrar sessão
-          </Button>
-        </Stack>
+        </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: 'background.default', minWidth: 0 }}>
-        <Toolbar />
-        <Outlet />
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3 } }}>
+        <Toolbar sx={{ minHeight: 60 }} />
+        <Box sx={{ maxWidth: 1440, mx: 'auto' }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

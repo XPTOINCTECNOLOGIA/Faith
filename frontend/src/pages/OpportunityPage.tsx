@@ -298,7 +298,7 @@ function FocalPointsSection({
             <Chip size="small" variant="outlined" label={FOCAL_PAPEL_LABEL[l.focalPoint.papel] ?? l.focalPoint.papel} />
             {l.autoAssigned && (
               <Tooltip title="Vinculado automaticamente pela UF do cliente (RN-023)">
-                <Chip size="small" label="automático" sx={{ bgcolor: 'rgba(96,207,226,0.12)' }} />
+                <Chip size="small" label="automático" sx={{ bgcolor: '#eef4ff', color: 'primary.main' }} />
               </Tooltip>
             )}
             <Box sx={{ flexGrow: 1 }} />

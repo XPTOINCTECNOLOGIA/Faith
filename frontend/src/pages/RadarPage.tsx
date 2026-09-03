@@ -4,64 +4,93 @@ import {
   Box,
   Button,
   Chip,
-  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
   Grid2 as Grid,
   IconButton,
+  LinearProgress,
   MenuItem,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import TableRowsIcon from '@mui/icons-material/TableRows';
+import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
 import { UFS, radarParseBRL, radarValorMensal, type Opportunity, type RadarOpportunity } from '../lib/types';
+import { DS, STATE_SOFT } from '../theme';
 
-interface FormState {
-  abrangencia: string;
-  esfera: string;
-  pais: string;
-  uf: string;
-  cidade: string;
-  objeto: string;
-  orgao_responsavel: string;
-  valor_estimado_total_contrato: string;
-  periodo: string;
-  tempo_contrato: string;
-  responsavel_serpro: string;
-  hunter: string;
-  parceiro: string;
-  nome_parceiro: string;
-}
-
-const EMPTY: FormState = {
-  abrangencia: 'Nacional', esfera: 'Federal', pais: 'Brasil', uf: '', cidade: '',
-  objeto: '', orgao_responsavel: '', valor_estimado_total_contrato: '', periodo: '',
-  tempo_contrato: '', responsavel_serpro: '', hunter: '', parceiro: '', nome_parceiro: '',
-};
+/* ── modelo de apresentação ─────────────────────────────────────────────────── */
 
 const ESFERAS = ['Federal', 'Estadual', 'Municipal'] as const;
 
 const brl0 = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
-function Bandeira({ item }: { item: RadarOpportunity }) {
+const informado = (v: string) => v !== 'Não informado' && v !== 'N/A';
+
+/** Health score: completude dos dados que sustentam forecast e follow-up. */
+function healthScore(r: RadarOpportunity): number {
+  const checks = [
+    informado(r.orgao_responsavel),
+    informado(r.valor_estimado_total_contrato),
+    informado(r.tempo_contrato),
+    informado(r.hunter),
+    r.parceiro !== 'Não informado',
+    informado(r.responsavel_serpro),
+  ];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
+function healthTone(score: number) {
+  if (score >= 80) return STATE_SOFT.success;
+  if (score >= 50) return STATE_SOFT.warning;
+  return STATE_SOFT.error;
+}
+
+function nextAction(r: RadarOpportunity): { label: string; tone: keyof typeof STATE_SOFT } {
+  if (r.pipeline) {
+    if (r.pipeline.status === 'ganha') return { label: 'Contrato ganho', tone: 'success' };
+    if (r.pipeline.status !== 'aberta') return { label: `Encerrada (${r.pipeline.status})`, tone: 'neutral' };
+    return { label: `No Pipeline · ${r.pipeline.stage?.name ?? ''}`, tone: 'info' };
+  }
+  if (!informado(r.valor_estimado_total_contrato)) return { label: 'Completar dados', tone: 'warning' };
+  return { label: 'Promover ao Pipeline', tone: 'neutral' };
+}
+
+function localDe(r: RadarOpportunity): string {
+  if (r.esfera === 'Federal') return r.pais;
+  if (r.esfera === 'Estadual') return `${r.uf} · ${r.pais}`;
+  return `${r.cidade}/${r.uf}`;
+}
+
+function Bandeira({ item, size = 22 }: { item: RadarOpportunity; size?: number }) {
   const isEmoji = /\p{Regional_Indicator}/u.test(item.icone_bandeira);
   if (isEmoji) {
     return (
       <Tooltip title={item.pais}>
-        <Typography component="span" sx={{ fontSize: 24, lineHeight: 1 }}>
+        <Typography component="span" sx={{ fontSize: size, lineHeight: 1 }}>
           {item.icone_bandeira}
         </Typography>
       </Tooltip>
@@ -71,41 +100,48 @@ function Bandeira({ item }: { item: RadarOpportunity }) {
     <Tooltip title={item.icone_bandeira}>
       <Chip
         size="small"
-        label={item.esfera === 'Estadual' ? item.uf : item.cidade}
-        sx={{ bgcolor: 'rgba(96,207,226,0.12)', color: 'primary.main', fontWeight: 700, minWidth: 44 }}
+        label={item.esfera === 'Estadual' ? item.uf : item.cidade.slice(0, 12)}
+        sx={{ bgcolor: DS.primarySoft, color: 'primary.main', fontWeight: 700, minWidth: 44 }}
       />
     </Tooltip>
   );
 }
 
-function localDe(r: RadarOpportunity): string {
-  if (r.esfera === 'Federal') return r.pais;
-  if (r.esfera === 'Estadual') return `${r.uf} · ${r.pais}`;
-  return `${r.cidade}/${r.uf}`;
+function Badge({ label, tone }: { label: string; tone: keyof typeof STATE_SOFT }) {
+  const t = STATE_SOFT[tone];
+  return <Chip size="small" label={label} sx={{ bgcolor: t.bg, color: t.color }} />;
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <Grid size={{ xs: 6, sm: 4, md: 3 }}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body2" fontWeight={600}>
-        {value}
-      </Typography>
-    </Grid>
-  );
+/* ── formulário ─────────────────────────────────────────────────────────────── */
+
+interface FormState {
+  abrangencia: string; esfera: string; pais: string; uf: string; cidade: string;
+  objeto: string; orgao_responsavel: string; valor_estimado_total_contrato: string;
+  periodo: string; tempo_contrato: string; responsavel_serpro: string;
+  hunter: string; parceiro: string; nome_parceiro: string;
 }
+
+const EMPTY: FormState = {
+  abrangencia: 'Nacional', esfera: 'Federal', pais: 'Brasil', uf: '', cidade: '',
+  objeto: '', orgao_responsavel: '', valor_estimado_total_contrato: '', periodo: '',
+  tempo_contrato: '', responsavel_serpro: '', hunter: '', parceiro: '', nome_parceiro: '',
+};
+
+/* ── página ─────────────────────────────────────────────────────────────────── */
 
 export default function RadarPage() {
   const { can } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canWrite = can('opp.create') || can('opp.update');
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get('q') ?? '');
   const [esfera, setEsfera] = useState('');
   const [uf, setUf] = useState('');
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [view, setView] = useState<'lista' | 'tabela'>('lista');
+  const [sortBy, setSortBy] = useState<'valor' | 'objeto' | 'health'>('valor');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [selected, setSelected] = useState<RadarOpportunity | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RadarOpportunity | null>(null);
   const [removing, setRemoving] = useState<RadarOpportunity | null>(null);
@@ -130,6 +166,23 @@ export default function RadarPage() {
     return { soma, mensal, promovidas };
   }, [items]);
 
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...items].sort((a, b) => {
+      if (sortBy === 'objeto') return a.objeto.localeCompare(b.objeto) * dir;
+      if (sortBy === 'health') return (healthScore(a) - healthScore(b)) * dir;
+      return (radarParseBRL(a.valor_estimado_total_contrato) - radarParseBRL(b.valor_estimado_total_contrato)) * dir;
+    });
+  }, [items, sortBy, sortDir]);
+
+  function sortHandler(col: typeof sortBy) {
+    if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else {
+      setSortBy(col);
+      setSortDir('desc');
+    }
+  }
+
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY });
@@ -143,14 +196,14 @@ export default function RadarPage() {
       abrangencia: r.abrangencia, esfera: r.esfera, pais: r.pais,
       uf: r.uf === 'N/A' ? '' : r.uf, cidade: r.cidade === 'N/A' ? '' : r.cidade,
       objeto: r.objeto,
-      orgao_responsavel: r.orgao_responsavel === 'Não informado' ? '' : r.orgao_responsavel,
-      valor_estimado_total_contrato: r.valor_estimado_total_contrato === 'Não informado' ? '' : r.valor_estimado_total_contrato,
-      periodo: r.periodo === 'Não informado' ? '' : r.periodo,
-      tempo_contrato: r.tempo_contrato === 'Não informado' ? '' : r.tempo_contrato,
-      responsavel_serpro: r.responsavel_serpro === 'Não informado' ? '' : r.responsavel_serpro,
-      hunter: r.hunter === 'Não informado' ? '' : r.hunter,
-      parceiro: r.parceiro === 'Não informado' || r.parceiro === 'N/A' ? '' : r.parceiro,
-      nome_parceiro: r.nome_parceiro === 'Não informado' || r.nome_parceiro === 'N/A' ? '' : r.nome_parceiro,
+      orgao_responsavel: informado(r.orgao_responsavel) ? r.orgao_responsavel : '',
+      valor_estimado_total_contrato: informado(r.valor_estimado_total_contrato) ? r.valor_estimado_total_contrato : '',
+      periodo: informado(r.periodo) ? r.periodo : '',
+      tempo_contrato: informado(r.tempo_contrato) ? r.tempo_contrato : '',
+      responsavel_serpro: informado(r.responsavel_serpro) ? r.responsavel_serpro : '',
+      hunter: informado(r.hunter) ? r.hunter : '',
+      parceiro: informado(r.parceiro) ? r.parceiro : '',
+      nome_parceiro: informado(r.nome_parceiro) ? r.nome_parceiro : '',
     });
     setError(null);
     setOpen(true);
@@ -163,6 +216,7 @@ export default function RadarPage() {
       if (editing) await api.patch(`/radar/${editing.id}`, body);
       else await api.post('/radar', body);
       setOpen(false);
+      setSelected(null);
       await queryClient.invalidateQueries({ queryKey: ['radar'] });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao salvar.');
@@ -173,6 +227,7 @@ export default function RadarPage() {
     if (!removing) return;
     await api.delete(`/radar/${removing.id}`);
     setRemoving(null);
+    setSelected(null);
     await queryClient.invalidateQueries({ queryKey: ['radar'] });
   }
 
@@ -185,7 +240,6 @@ export default function RadarPage() {
         queryClient.invalidateQueries({ queryKey: ['radar'] }),
         queryClient.invalidateQueries({ queryKey: ['kanban'] }),
         queryClient.invalidateQueries({ queryKey: ['clients'] }),
-        queryClient.invalidateQueries({ queryKey: ['open-count'] }),
       ]);
       navigate(`/oportunidades/${opp.id}`);
     } catch (e) {
@@ -203,11 +257,46 @@ export default function RadarPage() {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ flexGrow: 1 }}>
-          Radar de Oportunidades
-        </Typography>
-        <TextField select size="small" label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)} sx={{ minWidth: 120 }}>
+      {/* Cabeçalho */}
+      <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
+        <Typography variant="h4">Oportunidades</Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={view}
+          onChange={(_e, v) => v && setView(v)}
+          aria-label="Modo de visualização"
+        >
+          <ToggleButton value="lista" aria-label="Lista agrupada">
+            <ViewAgendaOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} /> Lista
+          </ToggleButton>
+          <ToggleButton value="tabela" aria-label="Tabela">
+            <TableRowsIcon fontSize="small" sx={{ mr: 0.75 }} /> Tabela
+          </ToggleButton>
+        </ToggleButtonGroup>
+        {canWrite && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+            Nova oportunidade
+          </Button>
+        )}
+      </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {items.length} em prospecção · {brl0(resumo.soma)} estimados · {brl0(resumo.mensal)}/mês ·{' '}
+        {resumo.promovidas} no Pipeline
+      </Typography>
+
+      {/* Filtros */}
+      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 2.5 }}>
+        <TextField
+          size="small"
+          label="Buscar"
+          placeholder="objeto, órgão, cidade, país…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ minWidth: 260 }}
+        />
+        <TextField select size="small" label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)} sx={{ minWidth: 130 }}>
           <MenuItem value="">Todas</MenuItem>
           {ESFERAS.map((es) => (
             <MenuItem key={es} value={es}>
@@ -215,7 +304,7 @@ export default function RadarPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField select size="small" label="UF" value={uf} onChange={(e) => setUf(e.target.value)} sx={{ minWidth: 90 }}>
+        <TextField select size="small" label="UF" value={uf} onChange={(e) => setUf(e.target.value)} sx={{ minWidth: 96 }}>
           <MenuItem value="">Todas</MenuItem>
           {UFS.map((u) => (
             <MenuItem key={u} value={u}>
@@ -223,168 +312,264 @@ export default function RadarPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField size="small" label="Buscar" value={search} onChange={(e) => setSearch(e.target.value)} />
-        {canWrite && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-            Nova
-          </Button>
-        )}
       </Stack>
-      <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
-        {items.length} oportunidade{items.length === 1 ? '' : 's'} em prospecção · {brl0(resumo.soma)} estimados ·{' '}
-        {brl0(resumo.mensal)}/mês · {resumo.promovidas} já no Pipeline
-      </Typography>
 
       {pageError && (
         <Alert severity="error" onClose={() => setPageError(null)} sx={{ mb: 2 }}>
           {pageError}
         </Alert>
       )}
+      {radar.isLoading && <LinearProgress sx={{ mb: 2 }} />}
 
-      {ESFERAS.filter((es) => items.some((r) => r.esfera === es)).map((es) => {
-        const group = items.filter((r) => r.esfera === es);
-        const groupTotal = group.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
-        return (
-          <Box key={es} sx={{ mb: 3 }}>
-            <Stack direction="row" spacing={1.5} alignItems="baseline" sx={{ mb: 1 }}>
-              <Typography variant="subtitle1" fontWeight={800} sx={{ letterSpacing: '.04em' }}>
-                {es.toUpperCase()}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {group.length} oportunidade{group.length === 1 ? '' : 's'} · {brl0(groupTotal)}
-              </Typography>
-            </Stack>
-            <Stack spacing={1}>
-              {group.map((r) => {
-                const isOpen = expanded === r.id;
-                return (
-                  <Box
-                    key={r.id}
-                    sx={{
-                      border: '1px solid',
-                      borderColor: isOpen ? 'primary.dark' : 'divider',
-                      borderRadius: 2,
-                      bgcolor: 'background.paper',
-                      overflow: 'hidden',
-                    }}
-                  >
+      {/* ── Visão LISTA (agrupada por esfera) ── */}
+      {view === 'lista' &&
+        ESFERAS.filter((es) => items.some((r) => r.esfera === es)).map((es) => {
+          const group = items.filter((r) => r.esfera === es);
+          const groupTotal = group.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
+          return (
+            <Box key={es} sx={{ mb: 3 }}>
+              <Stack direction="row" spacing={1.5} alignItems="baseline" sx={{ mb: 1 }}>
+                <Typography variant="overline">{es}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {group.length} · {brl0(groupTotal)}
+                </Typography>
+              </Stack>
+              <Stack spacing={1}>
+                {group.map((r) => {
+                  const na = nextAction(r);
+                  return (
                     <Stack
+                      key={r.id}
                       direction="row"
                       spacing={1.5}
                       alignItems="center"
-                      onClick={() => setExpanded(isOpen ? null : r.id)}
-                      sx={{ px: 2, py: 1.25, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(96,207,226,0.05)' } }}
+                      onClick={() => setSelected(r)}
+                      sx={{
+                        px: 2,
+                        py: 1.25,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 2.5,
+                        cursor: 'pointer',
+                        boxShadow: DS.shadowXs,
+                        '&:hover': { borderColor: 'primary.main' },
+                      }}
                     >
                       <Bandeira item={r} />
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Typography fontWeight={700} noWrap>
+                        <Typography fontWeight={600} noWrap>
                           {r.objeto}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                           {localDe(r)}
-                          {r.orgao_responsavel !== 'Não informado' ? ` · ${r.orgao_responsavel}` : ''}
+                          {informado(r.orgao_responsavel) ? ` · ${r.orgao_responsavel}` : ''}
                         </Typography>
                       </Box>
-                      {r.pipeline ? (
-                        <Tooltip title={`No Pipeline — etapa ${r.pipeline.stage?.name ?? ''}`}>
-                          <Chip
-                            size="small"
-                            component={Link}
-                            to={`/oportunidades/${r.pipeline.id}`}
-                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                            clickable
-                            label={r.pipeline.code}
-                            sx={{
-                              bgcolor: r.pipeline.stage?.color ?? 'rgba(16,185,129,0.16)',
-                              color: '#fff',
-                              fontWeight: 700,
-                            }}
-                          />
-                        </Tooltip>
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}
-                        >
-                          {r.valor_estimado_total_contrato}
-                        </Typography>
-                      )}
-                      <IconButton size="small" sx={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '.2s' }}>
-                        <ExpandMoreIcon fontSize="small" />
-                      </IconButton>
+                      <Typography
+                        variant="body2"
+                        fontWeight={600}
+                        sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', display: { xs: 'none', sm: 'block' } }}
+                      >
+                        {r.valor_estimado_total_contrato}
+                      </Typography>
+                      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                        <Badge label={na.label} tone={na.tone} />
+                      </Box>
                     </Stack>
+                  );
+                })}
+              </Stack>
+            </Box>
+          );
+        })}
 
-                    <Collapse in={isOpen} unmountOnExit>
-                      <Box sx={{ px: 2, pb: 2, pt: 0.5, borderTop: '1px dashed', borderColor: 'divider' }}>
-                        <Grid container spacing={2} sx={{ mt: 0 }}>
-                          <DetailField label="Valor total do contrato" value={r.valor_estimado_total_contrato} />
-                          <DetailField label="Valor mensal (calculado)" value={r.valor_mensal} />
-                          <DetailField label="Tempo de contrato" value={r.tempo_contrato} />
-                          <DetailField label="Período" value={r.periodo} />
-                          <DetailField label="Abrangência" value={r.abrangencia} />
-                          <DetailField label="País" value={r.pais} />
-                          <DetailField label="Hunter" value={r.hunter} />
-                          <DetailField
-                            label="Parceiro"
-                            value={r.parceiro === 'Sim' ? r.nome_parceiro : r.parceiro}
-                          />
-                          <DetailField label="Responsável SERPRO" value={r.responsavel_serpro} />
-                          <DetailField label="Órgão responsável" value={r.orgao_responsavel} />
-                        </Grid>
-                        {canWrite && (
-                          <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
-                            {r.pipeline ? (
-                              <Button
-                                size="small"
-                                variant="contained"
-                                component={Link}
-                                to={`/oportunidades/${r.pipeline.id}`}
-                                startIcon={<RocketLaunchIcon />}
-                              >
-                                Abrir no Pipeline ({r.pipeline.code})
-                              </Button>
-                            ) : (
-                              <Tooltip title="Cria a oportunidade na esteira de governança, reaproveitando/criando o cliente (órgão) e o parceiro">
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  startIcon={<RocketLaunchIcon />}
-                                  disabled={promoting === r.id}
-                                  onClick={() => void promote(r)}
-                                >
-                                  {promoting === r.id ? 'Promovendo…' : 'Promover ao Pipeline'}
-                                </Button>
-                              </Tooltip>
-                            )}
-                            <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => openEdit(r)}>
-                              Editar
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<DeleteOutlineIcon />}
-                              onClick={() => setRemoving(r)}
-                            >
-                              Remover
-                            </Button>
-                          </Stack>
-                        )}
-                      </Box>
-                    </Collapse>
-                  </Box>
+      {/* ── Visão TABELA (enterprise) ── */}
+      {view === 'tabela' && (
+        <TableContainer
+          sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2.5, maxHeight: 620 }}
+        >
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>
+                  <TableSortLabel active={sortBy === 'objeto'} direction={sortDir} onClick={() => sortHandler('objeto')}>
+                    Oportunidade
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>Esfera</TableCell>
+                <TableCell>Local</TableCell>
+                <TableCell align="right">
+                  <TableSortLabel active={sortBy === 'valor'} direction={sortDir} onClick={() => sortHandler('valor')}>
+                    Valor total
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="right">Mensal</TableCell>
+                <TableCell>Contrato</TableCell>
+                <TableCell>Hunter</TableCell>
+                <TableCell>Parceiro</TableCell>
+                <TableCell>
+                  <TableSortLabel active={sortBy === 'health'} direction={sortDir} onClick={() => sortHandler('health')}>
+                    Health
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>Próxima ação</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sorted.map((r) => {
+                const na = nextAction(r);
+                const hs = healthScore(r);
+                const ht = healthTone(hs);
+                return (
+                  <TableRow key={r.id} hover onClick={() => setSelected(r)} sx={{ cursor: 'pointer' }}>
+                    <TableCell sx={{ maxWidth: 300 }}>
+                      <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Bandeira item={r} size={18} />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={600} noWrap>
+                            {r.objeto}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                            {informado(r.orgao_responsavel) ? r.orgao_responsavel : '—'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>{r.esfera}</TableCell>
+                    <TableCell>{localDe(r)}</TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                      {r.valor_estimado_total_contrato}
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                      {r.valor_mensal}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{r.tempo_contrato}</TableCell>
+                    <TableCell>{r.hunter}</TableCell>
+                    <TableCell>{r.parceiro === 'Sim' ? r.nome_parceiro : r.parceiro}</TableCell>
+                    <TableCell>
+                      <Chip size="small" label={`${hs}%`} sx={{ bgcolor: ht.bg, color: ht.color }} />
+                    </TableCell>
+                    <TableCell>
+                      <Badge label={na.label} tone={na.tone} />
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </Stack>
-          </Box>
-        );
-      })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {!radar.isLoading && items.length === 0 && (
         <Alert severity="info">Nenhuma oportunidade encontrada com os filtros atuais.</Alert>
       )}
 
+      {/* ── Drawer de detalhe ── */}
+      <Drawer anchor="right" open={!!selected} onClose={() => setSelected(null)}>
+        {selected && (
+          <Box sx={{ width: { xs: '100vw', sm: 460 }, p: 3 }}>
+            <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 0.5 }}>
+              <Bandeira item={selected} size={26} />
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Typography variant="h5">{selected.objeto}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {localDe(selected)}
+                  {informado(selected.orgao_responsavel) ? ` · ${selected.orgao_responsavel}` : ''}
+                </Typography>
+              </Box>
+              <IconButton size="small" onClick={() => setSelected(null)} aria-label="Fechar">
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+
+            <Stack direction="row" spacing={1} sx={{ my: 2 }} flexWrap="wrap" useFlexGap>
+              <Chip size="small" variant="outlined" label={selected.esfera} />
+              <Chip size="small" variant="outlined" label={selected.abrangencia} />
+              {informado(selected.hunter) && <Chip size="small" variant="outlined" label={`Hunter: ${selected.hunter}`} />}
+              <Badge label={nextAction(selected).label} tone={nextAction(selected).tone} />
+            </Stack>
+
+            {(() => {
+              const hs = healthScore(selected);
+              const ht = healthTone(hs);
+              return (
+                <Box sx={{ mb: 2.5 }}>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                    <Typography variant="overline">Health score (completude dos dados)</Typography>
+                    <Typography variant="caption" sx={{ color: ht.color, fontWeight: 700 }}>
+                      {hs}%
+                    </Typography>
+                  </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={hs}
+                    sx={{ height: 6, '& .MuiLinearProgress-bar': { bgcolor: ht.color } }}
+                  />
+                </Box>
+              );
+            })()}
+
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              {[
+                ['Valor total do contrato', selected.valor_estimado_total_contrato],
+                ['Valor mensal (calculado)', selected.valor_mensal],
+                ['Tempo de contrato', selected.tempo_contrato],
+                ['Período', selected.periodo],
+                ['País', selected.pais],
+                ['Órgão responsável', selected.orgao_responsavel],
+                ['Parceiro', selected.parceiro === 'Sim' ? selected.nome_parceiro : selected.parceiro],
+                ['Responsável SERPRO', selected.responsavel_serpro],
+              ].map(([label, value]) => (
+                <Grid key={label} size={{ xs: 6 }}>
+                  <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.6 }}>
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {value}
+                  </Typography>
+                </Grid>
+              ))}
+            </Grid>
+
+            {canWrite && (
+              <Stack spacing={1}>
+                {selected.pipeline ? (
+                  <Button
+                    variant="contained"
+                    component={Link}
+                    to={`/oportunidades/${selected.pipeline.id}`}
+                    startIcon={<RocketLaunchIcon />}
+                  >
+                    Abrir no Pipeline ({selected.pipeline.code})
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    startIcon={<RocketLaunchIcon />}
+                    disabled={promoting === selected.id}
+                    onClick={() => void promote(selected)}
+                  >
+                    {promoting === selected.id ? 'Promovendo…' : 'Promover ao Pipeline'}
+                  </Button>
+                )}
+                <Stack direction="row" spacing={1}>
+                  <Button fullWidth variant="outlined" startIcon={<EditIcon />} onClick={() => openEdit(selected)}>
+                    Editar
+                  </Button>
+                  <Button fullWidth color="error" variant="outlined" startIcon={<DeleteOutlineIcon />} onClick={() => setRemoving(selected)}>
+                    Remover
+                  </Button>
+                </Stack>
+              </Stack>
+            )}
+          </Box>
+        )}
+      </Drawer>
+
+      {/* ── Formulário ── */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>{editing ? `Editar oportunidade #${editing.id}` : 'Nova oportunidade no radar'}</DialogTitle>
+        <DialogTitle>{editing ? `Editar oportunidade #${editing.id}` : 'Nova oportunidade'}</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
