@@ -203,7 +203,7 @@ export default function Layout() {
       {!mini && (
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            FAITH v1.2.0 · SSO Tetelestai
+            FAITH v1.3.0 · SSO Tetelestai
           </Typography>
         </Box>
       )}

@@ -44,6 +44,10 @@ import { DS, STATE_SOFT } from '../theme';
 /* ── modelo de apresentação ─────────────────────────────────────────────────── */
 
 const ESFERAS = ['Federal', 'Estadual', 'Municipal'] as const;
+/** Esfera de apresentação: propostas internacionais formam grupo próprio. */
+const GRUPOS = ['Federal', 'Estadual', 'Municipal', 'Internacional'] as const;
+const grupoDe = (r: RadarOpportunity): string =>
+  r.abrangencia === 'Internacional' ? 'Internacional' : r.esfera;
 
 const brl0 = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -159,15 +163,20 @@ export default function RadarPage() {
   const [error, setError] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  const esferaApi = esfera && esfera !== 'Internacional' ? esfera : '';
   const radar = useQuery({
-    queryKey: ['radar', search, esfera, uf],
+    queryKey: ['radar', search, esferaApi, uf],
     queryFn: () =>
       api.get<RadarOpportunity[]>(
-        `/radar?search=${encodeURIComponent(search)}${esfera ? `&esfera=${esfera}` : ''}${uf ? `&uf=${uf}` : ''}`,
+        `/radar?search=${encodeURIComponent(search)}${esferaApi ? `&esfera=${esferaApi}` : ''}${uf ? `&uf=${uf}` : ''}`,
       ),
   });
 
-  const items = radar.data ?? [];
+  const items = (radar.data ?? []).filter((r) =>
+    esfera === 'Internacional' ? grupoDe(r) === 'Internacional'
+      : esfera ? grupoDe(r) === esfera
+      : true,
+  );
   const resumo = useMemo(() => {
     const soma = items.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
     const mensal = items.reduce((a, r) => a + radarParseBRL(r.valor_mensal), 0);
@@ -305,9 +314,9 @@ export default function RadarPage() {
           onChange={(e) => setSearch(e.target.value)}
           sx={{ minWidth: 260 }}
         />
-        <TextField select size="small" label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)} sx={{ minWidth: 130 }}>
+        <TextField select size="small" label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)} sx={{ minWidth: 140 }}>
           <MenuItem value="">Todas</MenuItem>
-          {ESFERAS.map((es) => (
+          {GRUPOS.map((es) => (
             <MenuItem key={es} value={es}>
               {es}
             </MenuItem>
@@ -332,8 +341,8 @@ export default function RadarPage() {
 
       {/* ── Visão LISTA (agrupada por esfera) ── */}
       {view === 'lista' &&
-        ESFERAS.filter((es) => items.some((r) => r.esfera === es)).map((es) => {
-          const group = items.filter((r) => r.esfera === es);
+        GRUPOS.filter((es) => items.some((r) => grupoDe(r) === es)).map((es) => {
+          const group = items.filter((r) => grupoDe(r) === es);
           const groupTotal = group.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
           return (
             <Box key={es} sx={{ mb: 3 }}>

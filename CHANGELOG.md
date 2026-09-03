@@ -1,5 +1,18 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 1.3.0 — 2026-09-03
+
+- **Voltar etapa (RN-025)**: quem possui `opp.admin` (ex.: SUPER ADMIN) pode
+  retornar uma oportunidade aberta a qualquer etapa anterior não-terminal —
+  botão "Voltar etapa" no detalhe, com escolha da etapa e justificativa
+  obrigatória; o banco valida a permissão (migration 0078) e a auditoria
+  registra a ação própria `regress`. Avanço segue RN-001/RN-002 para todos.
+- **Internacional como esfera nas visões**: o donut "Prospecção por esfera"
+  do Dashboard e a lista/filtro de Oportunidades passam a separar as
+  propostas internacionais da esfera Federal nacional (Federal ·
+  Internacional · Estadual · Municipal, paleta do anel revalidada nas 6
+  checagens, incluindo o par de fechamento).
+
 ## 1.2.0 — 2026-09-03
 
 - **Dashboard no padrão visual do mapa**: KPI hero com o gradiente da marca

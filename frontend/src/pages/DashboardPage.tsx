@@ -29,10 +29,21 @@ import { DS, SOURCE_HEX, STATE_SOFT } from '../theme';
 
 const GeoMap = lazy(() => import('../components/GeoMap'));
 
-/* Paleta de dados (validada com scripts/validate_palette.js — 6 checagens):
- * esferas em ordem fixa Federal/Estadual/Municipal; hue único para séries
- * de magnitude; cores de status reservadas para estado. */
-const ESFERA_HEX: Record<string, string> = { Federal: '#1a56db', Estadual: '#d97706', Municipal: '#0e9384' };
+/* Paleta de dados (validada com scripts/validate_palette.js — 6 checagens,
+ * incluindo o par de fechamento do anel do donut): esferas de apresentação em
+ * ordem fixa Federal → Internacional → Estadual → Municipal; hue único para
+ * séries de magnitude; cores de status reservadas para estado.
+ * "Internacional" é tratada como esfera na visão executiva (abrangência
+ * Internacional), separada da Federal nacional. */
+const ESFERA_ORDER = ['Federal', 'Internacional', 'Estadual', 'Municipal'] as const;
+const ESFERA_HEX: Record<string, string> = {
+  Federal: '#1a56db',
+  Internacional: '#db2777',
+  Estadual: '#d97706',
+  Municipal: '#0e9384',
+};
+const esferaDe = (r: RadarOpportunity): string =>
+  r.abrangencia === 'Internacional' ? 'Internacional' : r.esfera;
 const SINGLE = '#2a78d6';
 const TRACK = '#e9e7e4';
 const SOURCE_ORDER = ['xpto', 'parceiro', 'serpro'] as const;
@@ -95,9 +106,9 @@ export default function DashboardPage() {
   const radarTotal = rd.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
   const pipelinePlusRadar = s.pipelineTotal + radarTotal;
 
-  const porEsfera = (['Federal', 'Estadual', 'Municipal'] as const)
+  const porEsfera = ESFERA_ORDER
     .map((es) => {
-      const rows = rd.filter((r) => r.esfera === es);
+      const rows = rd.filter((r) => esferaDe(r) === es);
       return { label: es, count: rows.length, value: rows.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0) };
     })
     .filter((g) => g.count > 0);

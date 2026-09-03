@@ -63,6 +63,9 @@ export default function OpportunityPage() {
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [regressOpen, setRegressOpen] = useState(false);
+  const [regressStage, setRegressStage] = useState('');
+  const [regressReason, setRegressReason] = useState('');
 
   const opp = useQuery({
     queryKey: ['opportunity', oppId],
@@ -100,6 +103,26 @@ export default function OpportunityPage() {
   const nextStage = (stages.data ?? [])
     .filter((s) => !s.isTerminal && s.position > (data.stage?.position ?? 0))
     .sort((a, b) => a.position - b.position)[0];
+  // RN-025: etapas anteriores não-terminais, disponíveis para regressão administrativa
+  const earlierStages = (stages.data ?? [])
+    .filter((s) => !s.isTerminal && s.active !== false && s.position < (data.stage?.position ?? 0))
+    .sort((a, b) => a.position - b.position);
+
+  async function regress() {
+    try {
+      await api.post(`/opportunities/${oppId}/transition`, {
+        toStageId: Number(regressStage),
+        justification: `[Regressão administrativa — RN-025] ${regressReason.trim()}`,
+      });
+      setRegressOpen(false);
+      setRegressStage('');
+      setRegressReason('');
+      setFeedback({ severity: 'success', text: 'Etapa retornada com sucesso (registrada na auditoria).' });
+      await invalidate();
+    } catch (e) {
+      setFeedback({ severity: 'error', text: e instanceof ApiError ? e.message : 'Falha ao retornar etapa.' });
+    }
+  }
 
   return (
     <Box>
@@ -124,6 +147,13 @@ export default function OpportunityPage() {
           >
             Avançar etapa
           </Button>
+        )}
+        {data.status === 'aberta' && can('opp.admin') && earlierStages.length > 0 && (
+          <Tooltip title="Regressão administrativa (RN-025): retorna a oportunidade a uma etapa anterior, com justificativa auditada">
+            <Button variant="outlined" onClick={() => setRegressOpen(true)}>
+              Voltar etapa
+            </Button>
+          </Tooltip>
         )}
         {data.status === 'aberta' && can('opp.close') && (
           <Button color="error" variant="outlined" onClick={() => setCloseOpen(true)}>
@@ -184,6 +214,51 @@ export default function OpportunityPage() {
           await invalidate();
         }}
       />
+
+      <Dialog open={regressOpen} onClose={() => setRegressOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Voltar etapa (regressão administrativa)</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            RN-025: disponível apenas para administração. A oportunidade retorna à etapa escolhida,
+            o checklist das etapas permanece como está, e a operação fica registrada na trilha de
+            auditoria com a sua justificativa.
+          </Alert>
+          <Stack spacing={2}>
+            <TextField
+              select
+              fullWidth
+              label="Retornar para a etapa"
+              value={regressStage}
+              onChange={(e) => setRegressStage(e.target.value)}
+            >
+              {earlierStages.map((s) => (
+                <MenuItem key={s.id} value={String(s.id)}>
+                  {s.position}. {s.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              required
+              multiline
+              minRows={2}
+              label="Justificativa (obrigatória)"
+              value={regressReason}
+              onChange={(e) => setRegressReason(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRegressOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            disabled={!regressStage || regressReason.trim().length < 5}
+            onClick={() => void regress()}
+          >
+            Voltar etapa
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
