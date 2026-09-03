@@ -39,6 +39,7 @@ enquanto as **migrations** do banco compartilhado permanecem centralizadas no re
 | `frontend/` | Código inicial da interface — React + TypeScript + Material UI |
 | `k8s/` | Manifests Kubernetes (deployment, service, ingress, configmap) |
 | `docker-compose.yml` | Ambiente local completo (API + front + Postgres) |
+| `CHANGELOG.md` | Histórico de versões |
 | `TETELESTAI/supabase/migrations/0073*.sql` e `0074*.sql` | DDL oficial (repositório TETELESTAI, padrão do ecossistema) |
 
 ## Sumário executivo da solução
