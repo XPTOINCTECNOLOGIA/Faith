@@ -30,6 +30,7 @@ import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { FaithLogo } from './FaithLogo';
 import { api } from '../lib/api';
 import type { Notification, Opportunity, Page } from '../lib/types';
 
@@ -76,12 +77,15 @@ export default function Layout() {
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <AppBar position="fixed" elevation={0} sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
         <Toolbar sx={{ gap: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: 0.2 }}>
-            Portal de Oportunidades{' '}
-            <Typography component="span" sx={{ color: 'primary.main', fontWeight: 700 }}>
-              XPTO + SERPRO
+          <Stack direction="row" spacing={1.5} alignItems="center" component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+            <FaithLogo size={34} subtitle={null} />
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
+              Portal de Oportunidades{' '}
+              <Typography component="span" variant="body2" sx={{ color: 'primary.main', fontWeight: 700 }}>
+                XPTO + SERPRO
+              </Typography>
             </Typography>
-          </Typography>
+          </Stack>
 
           <Box sx={{ flexGrow: 1 }} />
 
@@ -222,7 +226,7 @@ export default function Layout() {
         <Divider />
         <Stack spacing={0.5} sx={{ p: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            Portal de Oportunidades v0.1.0
+            FAITH · Portal de Oportunidades v0.1.0
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Sessão única com o Tetelestai (SSO)

@@ -14,6 +14,7 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import GavelIcon from '@mui/icons-material/Gavel';
 import LoginIcon from '@mui/icons-material/Login';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import { FaithMark } from '../components/FaithLogo';
 import { supabase } from '../lib/supabase';
 
 /**
@@ -78,13 +79,18 @@ export default function LoginPage() {
         }}
       >
         <Box>
-          <Typography variant="h4" fontWeight={800}>
-            Portal de Oportunidades
-          </Typography>
-          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 700 }}>
-            XPTO + SERPRO
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1.5, maxWidth: 480 }}>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <FaithMark size={64} />
+            <Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: '0.16em', lineHeight: 1 }}>
+                FAITH
+              </Typography>
+              <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 700 }}>
+                Portal de Oportunidades · XPTO + SERPRO
+              </Typography>
+            </Box>
+          </Stack>
+          <Typography color="text.secondary" sx={{ maxWidth: 480 }}>
             Esteira de governança comercial e contratual da parceria: rastreabilidade total do lead à
             operação.
           </Typography>
@@ -108,6 +114,9 @@ export default function LoginPage() {
         <Card sx={{ width: 420, maxWidth: '92vw' }}>
           <CardContent sx={{ p: 4 }}>
             <Stack spacing={2}>
+              <Box sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'center' }}>
+                <FaithMark size={48} />
+              </Box>
               <Typography variant="h5" fontWeight={800} textAlign="center">
                 Acesso corporativo
               </Typography>
