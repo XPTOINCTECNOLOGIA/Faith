@@ -3,9 +3,8 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,11 +13,6 @@ import {
   IconButton,
   MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -26,10 +20,13 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
-import { UFS, radarParseBRL, radarValorMensal, type RadarOpportunity } from '../lib/types';
+import { UFS, radarParseBRL, radarValorMensal, type Opportunity, type RadarOpportunity } from '../lib/types';
 
 interface FormState {
   abrangencia: string;
@@ -54,12 +51,17 @@ const EMPTY: FormState = {
   tempo_contrato: '', responsavel_serpro: '', hunter: '', parceiro: '', nome_parceiro: '',
 };
 
+const ESFERAS = ['Federal', 'Estadual', 'Municipal'] as const;
+
+const brl0 = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
 function Bandeira({ item }: { item: RadarOpportunity }) {
   const isEmoji = /\p{Regional_Indicator}/u.test(item.icone_bandeira);
   if (isEmoji) {
     return (
       <Tooltip title={item.pais}>
-        <Typography component="span" sx={{ fontSize: 26, lineHeight: 1 }}>
+        <Typography component="span" sx={{ fontSize: 24, lineHeight: 1 }}>
           {item.icone_bandeira}
         </Typography>
       </Tooltip>
@@ -70,24 +72,47 @@ function Bandeira({ item }: { item: RadarOpportunity }) {
       <Chip
         size="small"
         label={item.esfera === 'Estadual' ? item.uf : item.cidade}
-        sx={{ bgcolor: 'rgba(96,207,226,0.12)', color: 'primary.main', fontWeight: 700 }}
+        sx={{ bgcolor: 'rgba(96,207,226,0.12)', color: 'primary.main', fontWeight: 700, minWidth: 44 }}
       />
     </Tooltip>
   );
 }
 
+function localDe(r: RadarOpportunity): string {
+  if (r.esfera === 'Federal') return r.pais;
+  if (r.esfera === 'Estadual') return `${r.uf} · ${r.pais}`;
+  return `${r.cidade}/${r.uf}`;
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <Grid size={{ xs: 6, sm: 4, md: 3 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="body2" fontWeight={600}>
+        {value}
+      </Typography>
+    </Grid>
+  );
+}
+
 export default function RadarPage() {
   const { can } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canWrite = can('opp.create') || can('opp.update');
   const [search, setSearch] = useState('');
   const [esfera, setEsfera] = useState('');
   const [uf, setUf] = useState('');
+  const [expanded, setExpanded] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RadarOpportunity | null>(null);
   const [removing, setRemoving] = useState<RadarOpportunity | null>(null);
+  const [promoting, setPromoting] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   const radar = useQuery({
     queryKey: ['radar', search, esfera, uf],
@@ -98,14 +123,12 @@ export default function RadarPage() {
   });
 
   const items = radar.data ?? [];
-  const totals = useMemo(() => {
+  const resumo = useMemo(() => {
     const soma = items.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
     const mensal = items.reduce((a, r) => a + radarParseBRL(r.valor_mensal), 0);
-    return { soma, mensal, semValor: items.filter((r) => r.valor_estimado_total_contrato === 'Não informado').length };
+    const promovidas = items.filter((r) => r.opportunity_id).length;
+    return { soma, mensal, promovidas };
   }, [items]);
-
-  const brl = (v: number) =>
-    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
   function openCreate() {
     setEditing(null);
@@ -153,6 +176,25 @@ export default function RadarPage() {
     await queryClient.invalidateQueries({ queryKey: ['radar'] });
   }
 
+  async function promote(r: RadarOpportunity) {
+    setPageError(null);
+    setPromoting(r.id);
+    try {
+      const opp = await api.post<Opportunity>(`/radar/${r.id}/promote`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['radar'] }),
+        queryClient.invalidateQueries({ queryKey: ['kanban'] }),
+        queryClient.invalidateQueries({ queryKey: ['clients'] }),
+        queryClient.invalidateQueries({ queryKey: ['open-count'] }),
+      ]);
+      navigate(`/oportunidades/${opp.id}`);
+    } catch (e) {
+      setPageError(e instanceof ApiError ? e.message : 'Falha ao promover ao Pipeline.');
+    } finally {
+      setPromoting(null);
+    }
+  }
+
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -167,9 +209,11 @@ export default function RadarPage() {
         </Typography>
         <TextField select size="small" label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)} sx={{ minWidth: 120 }}>
           <MenuItem value="">Todas</MenuItem>
-          <MenuItem value="Federal">Federal</MenuItem>
-          <MenuItem value="Estadual">Estadual</MenuItem>
-          <MenuItem value="Municipal">Municipal</MenuItem>
+          {ESFERAS.map((es) => (
+            <MenuItem key={es} value={es}>
+              {es}
+            </MenuItem>
+          ))}
         </TextField>
         <TextField select size="small" label="UF" value={uf} onChange={(e) => setUf(e.target.value)} sx={{ minWidth: 90 }}>
           <MenuItem value="">Todas</MenuItem>
@@ -182,127 +226,162 @@ export default function RadarPage() {
         <TextField size="small" label="Buscar" value={search} onChange={(e) => setSearch(e.target.value)} />
         {canWrite && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-            Nova oportunidade
+            Nova
           </Button>
         )}
       </Stack>
       <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
-        Base padronizada de prospecção comercial — as regras de modelagem (valor mensal calculado,
-        bandeiras, N/A por esfera, hunter SERPRO) são aplicadas automaticamente pelo banco.
+        {items.length} oportunidade{items.length === 1 ? '' : 's'} em prospecção · {brl0(resumo.soma)} estimados ·{' '}
+        {brl0(resumo.mensal)}/mês · {resumo.promovidas} já no Pipeline
       </Typography>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        {[
-          { label: 'Oportunidades no radar', value: String(items.length) },
-          { label: 'Valor total estimado', value: brl(totals.soma) },
-          { label: 'Receita mensal estimada', value: brl(totals.mensal) },
-          { label: 'Sem valor informado', value: String(totals.semValor) },
-        ].map((k) => (
-          <Grid key={k.label} size={{ xs: 6, md: 3 }}>
-            <Card>
-              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Typography variant="caption" color="text.secondary">
-                  {k.label}
-                </Typography>
-                <Typography variant="h6" fontWeight={800}>
-                  {k.value}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {pageError && (
+        <Alert severity="error" onClose={() => setPageError(null)} sx={{ mb: 2 }}>
+          {pageError}
+        </Alert>
+      )}
 
-      <Box sx={{ overflowX: 'auto' }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell width={56}>#</TableCell>
-              <TableCell>Oportunidade</TableCell>
-              <TableCell>Esfera / Local</TableCell>
-              <TableCell align="right">Valor total</TableCell>
-              <TableCell align="right">Valor mensal</TableCell>
-              <TableCell>Contrato</TableCell>
-              <TableCell>Hunter</TableCell>
-              <TableCell>Parceiro</TableCell>
-              {canWrite && <TableCell align="right">Ações</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((r) => (
-              <TableRow key={r.id} hover>
-                <TableCell>{r.id}</TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <Bandeira item={r} />
-                    <Box>
-                      <Typography fontWeight={600}>{r.objeto}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {r.orgao_responsavel}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">{r.esfera}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {r.esfera === 'Federal'
-                      ? r.pais
-                      : r.esfera === 'Estadual'
-                        ? `${r.uf} · ${r.pais}`
-                        : `${r.cidade}/${r.uf}`}
-                  </Typography>
-                </TableCell>
-                <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                  {r.valor_estimado_total_contrato}
-                </TableCell>
-                <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                  {r.valor_mensal}
-                </TableCell>
-                <TableCell>{r.tempo_contrato}</TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={r.hunter}
-                    variant="outlined"
-                    color={r.hunter === 'XPTO' ? 'info' : r.hunter === 'SERPRO' ? 'success' : 'default'}
-                  />
-                </TableCell>
-                <TableCell>
-                  {r.parceiro === 'Sim' ? (
-                    <Typography variant="body2">{r.nome_parceiro}</Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      {r.parceiro}
-                    </Typography>
-                  )}
-                </TableCell>
-                {canWrite && (
-                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                    <Tooltip title="Editar">
-                      <IconButton size="small" onClick={() => openEdit(r)}>
-                        <EditIcon fontSize="small" />
+      {ESFERAS.filter((es) => items.some((r) => r.esfera === es)).map((es) => {
+        const group = items.filter((r) => r.esfera === es);
+        const groupTotal = group.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
+        return (
+          <Box key={es} sx={{ mb: 3 }}>
+            <Stack direction="row" spacing={1.5} alignItems="baseline" sx={{ mb: 1 }}>
+              <Typography variant="subtitle1" fontWeight={800} sx={{ letterSpacing: '.04em' }}>
+                {es.toUpperCase()}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {group.length} oportunidade{group.length === 1 ? '' : 's'} · {brl0(groupTotal)}
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              {group.map((r) => {
+                const isOpen = expanded === r.id;
+                return (
+                  <Box
+                    key={r.id}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: isOpen ? 'primary.dark' : 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="center"
+                      onClick={() => setExpanded(isOpen ? null : r.id)}
+                      sx={{ px: 2, py: 1.25, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(96,207,226,0.05)' } }}
+                    >
+                      <Bandeira item={r} />
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography fontWeight={700} noWrap>
+                          {r.objeto}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                          {localDe(r)}
+                          {r.orgao_responsavel !== 'Não informado' ? ` · ${r.orgao_responsavel}` : ''}
+                        </Typography>
+                      </Box>
+                      {r.pipeline ? (
+                        <Tooltip title={`No Pipeline — etapa ${r.pipeline.stage?.name ?? ''}`}>
+                          <Chip
+                            size="small"
+                            component={Link}
+                            to={`/oportunidades/${r.pipeline.id}`}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                            clickable
+                            label={r.pipeline.code}
+                            sx={{
+                              bgcolor: r.pipeline.stage?.color ?? 'rgba(16,185,129,0.16)',
+                              color: '#fff',
+                              fontWeight: 700,
+                            }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}
+                        >
+                          {r.valor_estimado_total_contrato}
+                        </Typography>
+                      )}
+                      <IconButton size="small" sx={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '.2s' }}>
+                        <ExpandMoreIcon fontSize="small" />
                       </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Remover">
-                      <IconButton size="small" onClick={() => setRemoving(r)}>
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-            {!radar.isLoading && items.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={canWrite ? 9 : 8}>
-                  <Typography color="text.secondary">Nenhuma oportunidade encontrada.</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Box>
+                    </Stack>
+
+                    <Collapse in={isOpen} unmountOnExit>
+                      <Box sx={{ px: 2, pb: 2, pt: 0.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+                        <Grid container spacing={2} sx={{ mt: 0 }}>
+                          <DetailField label="Valor total do contrato" value={r.valor_estimado_total_contrato} />
+                          <DetailField label="Valor mensal (calculado)" value={r.valor_mensal} />
+                          <DetailField label="Tempo de contrato" value={r.tempo_contrato} />
+                          <DetailField label="Período" value={r.periodo} />
+                          <DetailField label="Abrangência" value={r.abrangencia} />
+                          <DetailField label="País" value={r.pais} />
+                          <DetailField label="Hunter" value={r.hunter} />
+                          <DetailField
+                            label="Parceiro"
+                            value={r.parceiro === 'Sim' ? r.nome_parceiro : r.parceiro}
+                          />
+                          <DetailField label="Responsável SERPRO" value={r.responsavel_serpro} />
+                          <DetailField label="Órgão responsável" value={r.orgao_responsavel} />
+                        </Grid>
+                        {canWrite && (
+                          <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
+                            {r.pipeline ? (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                component={Link}
+                                to={`/oportunidades/${r.pipeline.id}`}
+                                startIcon={<RocketLaunchIcon />}
+                              >
+                                Abrir no Pipeline ({r.pipeline.code})
+                              </Button>
+                            ) : (
+                              <Tooltip title="Cria a oportunidade na esteira de governança, reaproveitando/criando o cliente (órgão) e o parceiro">
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  startIcon={<RocketLaunchIcon />}
+                                  disabled={promoting === r.id}
+                                  onClick={() => void promote(r)}
+                                >
+                                  {promoting === r.id ? 'Promovendo…' : 'Promover ao Pipeline'}
+                                </Button>
+                              </Tooltip>
+                            )}
+                            <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => openEdit(r)}>
+                              Editar
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteOutlineIcon />}
+                              onClick={() => setRemoving(r)}
+                            >
+                              Remover
+                            </Button>
+                          </Stack>
+                        )}
+                      </Box>
+                    </Collapse>
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
+        );
+      })}
+
+      {!radar.isLoading && items.length === 0 && (
+        <Alert severity="info">Nenhuma oportunidade encontrada com os filtros atuais.</Alert>
+      )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>{editing ? `Editar oportunidade #${editing.id}` : 'Nova oportunidade no radar'}</DialogTitle>
@@ -321,9 +400,11 @@ export default function RadarPage() {
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
               <TextField select fullWidth label="Esfera" value={form.esfera} onChange={set('esfera')}>
-                <MenuItem value="Federal">Federal</MenuItem>
-                <MenuItem value="Estadual">Estadual</MenuItem>
-                <MenuItem value="Municipal">Municipal</MenuItem>
+                {ESFERAS.map((es) => (
+                  <MenuItem key={es} value={es}>
+                    {es}
+                  </MenuItem>
+                ))}
               </TextField>
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
@@ -390,13 +471,7 @@ export default function RadarPage() {
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <TextField
-                fullWidth
-                label="Valor mensal (calculado)"
-                value={mensalPreview}
-                disabled
-                helperText="R5: nunca informado à mão"
-              />
+              <TextField fullWidth label="Valor mensal (calculado)" value={mensalPreview} disabled helperText="R5: nunca informado à mão" />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField fullWidth label="Responsável SERPRO" value={form.responsavel_serpro} onChange={set('responsavel_serpro')} />

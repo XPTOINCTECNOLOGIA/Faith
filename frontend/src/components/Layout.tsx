@@ -230,7 +230,7 @@ export default function Layout() {
         <Divider />
         <Stack spacing={0.5} sx={{ p: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            FAITH · Portal de Oportunidades v0.3.0
+            FAITH · Portal de Oportunidades v0.4.0
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Sessão única com o Tetelestai (SSO)

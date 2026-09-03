@@ -3,6 +3,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   Grid2 as Grid,
   LinearProgress,
   MenuItem,
@@ -20,7 +21,8 @@ import {
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { formatBRL, LEAD_SOURCE_LABEL, type DashboardSummary } from '../lib/types';
+import { Link } from 'react-router-dom';
+import { formatBRL, LEAD_SOURCE_LABEL, radarParseBRL, type DashboardSummary, type RadarOpportunity } from '../lib/types';
 
 /**
  * Paleta de dados validada (dataviz skill — references/palette.md):
@@ -105,6 +107,10 @@ export default function DashboardPage() {
     queryKey: ['dash-managers', suffix],
     queryFn: () => api.get<ManagerRow[]>(`/dashboard/rankings/managers${suffix}`),
   });
+  const radar = useQuery({
+    queryKey: ['radar', '', '', ''],
+    queryFn: () => api.get<RadarOpportunity[]>('/radar'),
+  });
 
   if (summary.isLoading) return <LinearProgress />;
   if (summary.error) return <Alert severity="error">Falha ao carregar o dashboard.</Alert>;
@@ -141,6 +147,57 @@ export default function DashboardPage() {
         <Kpi label="Vencidas" value={String(s.overdue)} warning={s.overdue > 0} />
         <Kpi label="Previsão ponderada" value={formatBRL(s.weightedForecast)} />
       </Grid>
+
+      {(radar.data ?? []).length > 0 && (() => {
+        const rd = radar.data!;
+        const total = rd.reduce((a, r) => a + radarParseBRL(r.valor_estimado_total_contrato), 0);
+        const mensal = rd.reduce((a, r) => a + radarParseBRL(r.valor_mensal), 0);
+        const promovidas = rd.filter((r) => r.opportunity_id).length;
+        const porEsfera = (['Federal', 'Estadual', 'Municipal'] as const)
+          .map((es) => ({ es, n: rd.filter((r) => r.esfera === es).length }))
+          .filter((g) => g.n > 0);
+        return (
+          <Box
+            component={Link}
+            to="/radar"
+            sx={{
+              display: 'block',
+              textDecoration: 'none',
+              color: 'inherit',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              px: 2,
+              py: 1.5,
+              mb: 2,
+              '&:hover': { borderColor: 'primary.dark' },
+            }}
+          >
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ letterSpacing: '.04em' }}>
+                RADAR DE PROSPECÇÃO
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {rd.length} oportunidade{rd.length === 1 ? '' : 's'} · {formatBRL(total)} estimados ·{' '}
+                {formatBRL(mensal)}/mês
+              </Typography>
+              {porEsfera.map((g) => (
+                <Chip key={g.es} size="small" variant="outlined" label={`${g.es}: ${g.n}`} />
+              ))}
+              <Box sx={{ flexGrow: 1 }} />
+              <Chip
+                size="small"
+                label={`${promovidas} promovida${promovidas === 1 ? '' : 's'} ao Pipeline`}
+                sx={{ bgcolor: 'rgba(16,185,129,0.14)', color: 'success.main', fontWeight: 700 }}
+              />
+              <Typography variant="body2" color="primary.main" fontWeight={700}>
+                Abrir radar →
+              </Typography>
+            </Stack>
+          </Box>
+        );
+      })()}
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>

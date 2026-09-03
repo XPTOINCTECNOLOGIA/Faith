@@ -721,14 +721,22 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
     }
 
     if (p === '/radar') {
-      let q = supabase.from('opp_radar').select('*');
+      let q = supabase.from('opp_radar')
+        .select('*, pipeline:opp_opportunities(id, code, status, stage:opp_stages(name, color))');
       if (qp.get('esfera')) q = q.eq('esfera', qp.get('esfera')!);
       if (qp.get('uf')) q = q.eq('uf', qp.get('uf')!);
       const s = qp.get('search');
       if (s) q = q.or(`objeto.ilike.%${s}%,orgao_responsavel.ilike.%${s}%,pais.ilike.%${s}%,cidade.ilike.%${s}%`);
       const { data, error } = await q.order('id');
       if (error) fail(error);
-      return (data ?? []).map((r: any) => ({ ...r, id: Number(r.id) }));
+      return (data ?? []).map((r: any) => ({
+        ...r,
+        id: Number(r.id),
+        opportunity_id: num(r.opportunity_id),
+        pipeline: r.pipeline
+          ? { id: Number(r.pipeline.id), code: r.pipeline.code, status: r.pipeline.status, stage: r.pipeline.stage }
+          : null,
+      }));
     }
 
     if (p === '/dashboard/summary') return dash.summary(qp);
@@ -779,6 +787,78 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (error) fail(error);
       await audit([{ entity: 'partner', entityId: Number(data.id), action: 'create' }]);
       return { id: Number(data.id), ...body };
+    }
+
+    if ((x = m(/^\/radar\/(\d+)\/promote$/))) {
+      // Promove um registro do radar à esteira de governança, reaproveitando
+      // ou criando o cliente (órgão) e o parceiro. Idempotente: já promovido
+      // devolve a oportunidade existente.
+      const my = await me();
+      const { data: r, error: re } = await supabase.from('opp_radar').select('*').eq('id', Number(x[1])).single();
+      if (re) fail(re);
+      if (r.opportunity_id) return getOpportunity(Number(r.opportunity_id));
+
+      const informado = (v: string | null) => v && v !== 'Não informado' && v !== 'N/A' ? v : null;
+      const clientName = informado(r.orgao_responsavel)
+        ?? `A definir — ${informado(r.cidade) ?? informado(r.uf) ?? r.pais}`;
+
+      // Cliente (órgão): reaproveita por nome (+ UF quando houver)
+      let clientQ = supabase.from('opp_clients').select('id').ilike('name', clientName).limit(1);
+      if (informado(r.uf)) clientQ = clientQ.eq('uf', r.uf);
+      const { data: found } = await clientQ;
+      let clientId = found?.length ? Number(found[0].id) : null;
+      if (!clientId) {
+        const { data: c, error: ce } = await supabase.from('opp_clients').insert({
+          name: clientName, orgao: informado(r.orgao_responsavel),
+          municipio: informado(r.cidade), uf: informado(r.uf),
+          notes: `Origem: Radar de Oportunidades #${r.id} (${r.abrangencia} · ${r.esfera} · ${r.pais})`,
+          created_by: my.id,
+        }).select('id').single();
+        if (ce) fail(ce);
+        clientId = Number(c.id);
+        await audit([{ entity: 'client', entityId: clientId, action: 'create' }]);
+      }
+
+      // Parceiro: reaproveita por nome quando parceiro = Sim
+      let partnerId: number | null = null;
+      if (r.parceiro === 'Sim' && informado(r.nome_parceiro)) {
+        const { data: pf } = await supabase.from('opp_partners').select('id')
+          .ilike('name', r.nome_parceiro).limit(1);
+        partnerId = pf?.length ? Number(pf[0].id) : null;
+        if (!partnerId) {
+          const { data: np, error: pe } = await supabase.from('opp_partners').insert({
+            name: r.nome_parceiro, created_by: my.id,
+          }).select('id').single();
+          if (pe) fail(pe);
+          partnerId = Number(np.id);
+          await audit([{ entity: 'partner', entityId: partnerId, action: 'create' }]);
+        }
+      }
+
+      const leadSource = String(r.hunter).toUpperCase() === 'SERPRO' ? 'serpro' : partnerId ? 'parceiro' : 'xpto';
+      const valor = ((): number | null => {
+        const d = String(r.valor_estimado_total_contrato).replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+        const v = Number(d);
+        return d && Number.isFinite(v) && v > 0 ? v : null;
+      })();
+
+      const opp: any = await createOpportunity({
+        leadSource, clientId, partnerId,
+        objeto: r.objeto,
+        solucao: r.objeto,
+        valorEstimado: valor,
+        prazoEstimado: informado(r.tempo_contrato),
+        situacaoComercial: 'Promovida do Radar de Oportunidades',
+        observacoes: `Radar #${r.id} · ${r.abrangencia} · ${r.esfera} · ` +
+          `${informado(r.cidade) ? r.cidade + '/' : ''}${informado(r.uf) ?? r.pais}` +
+          `${informado(r.responsavel_serpro) ? ' · Responsável SERPRO: ' + r.responsavel_serpro : ''}`,
+        gestorXptoId: my.id,
+      });
+
+      const { error: ue } = await supabase.from('opp_radar')
+        .update({ opportunity_id: opp.id }).eq('id', Number(x[1]));
+      if (ue) fail(ue);
+      return opp;
     }
 
     if (p === '/radar') {

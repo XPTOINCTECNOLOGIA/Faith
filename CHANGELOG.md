@@ -1,5 +1,20 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 0.4.0 — 2026-09-03
+
+- **Radar redesenhado**: lista enxuta agrupada por esfera (Federal/Estadual/
+  Municipal), cada linha mostra só o essencial — bandeira, oportunidade e
+  local/órgão; os demais dados abrem ao clicar (painel expansível) com as
+  ações Editar/Remover.
+- **Radar integrado à aplicação**: botão "Promover ao Pipeline" cria a
+  oportunidade na esteira de governança reaproveitando/criando o Cliente
+  (órgão) e o Parceiro automaticamente, com origem derivada do hunter
+  (SERPRO/parceiro/XPTO), valor estimado, prazo e observações preenchidos;
+  o registro do radar fica vinculado (chip com o código OPP e a etapa,
+  clicável) e não promove duas vezes (migration 0077, promoção auditada).
+- **Dashboard**: nova faixa "Radar de prospecção" com totais, contagem por
+  esfera e promovidas, linkando para o radar.
+
 ## 0.3.0 — 2026-09-03
 
 - **Radar de Oportunidades** (menu "Radar"): base padronizada de prospecção

@@ -166,8 +166,17 @@ export interface OpportunityFocalPoint {
   focalPoint: FocalPoint;
 }
 
+export interface RadarPipelineRef {
+  id: number;
+  code: string;
+  status: string;
+  stage?: { name: string; color: string | null } | null;
+}
+
 export interface RadarOpportunity {
   id: number;
+  opportunity_id: number | null;
+  pipeline?: RadarPipelineRef | null;
   abrangencia: 'Nacional' | 'Internacional';
   esfera: 'Federal' | 'Estadual' | 'Municipal';
   pais: string;
