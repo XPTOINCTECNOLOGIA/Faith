@@ -60,11 +60,12 @@ enquanto as **migrations** do banco compartilhado permanecem centralizadas no re
 
 ## Ambiente publicado (produção)
 
-- **App (oficial)**: https://faith-oportunidades.vercel.app — projeto Vercel `faith-oportunidades`
+- **App (oficial)**: https://faith-xpto-serpro.vercel.app — projeto Vercel `faith-xpto-serpro`
   (time XPTO), conectado a **este repositório** (Root Directory `frontend`) com deploy automático
   por push na `main`. Acesso público (a autenticação é a do próprio portal, via SSO corporativo).
-  O projeto auxiliar `faith-xpto-serpro`, usado durante a migração de repositório, pode ser
-  deletado no painel do Vercel.
+  Os projetos Vercel antigos (`faith-oportunidades`, `faith`, `faith-portal`, `faith-app`,
+  `faith-web`, `faith-xpto`), remanescentes da fase em que o código vivia no repositório
+  TETELESTAI, devem ser deletados no painel do Vercel.
 - **Banco/SSO**: projeto Supabase corporativo (o mesmo do Tetelestai). Migrations 0073 e 0074
   aplicadas; login com a conta corporativa (GoTrue) — sem cadastro próprio.
 - **Modo de operação**: "modo ecossistema" — a SPA fala direto com PostgREST/Storage/GoTrue,
