@@ -1,5 +1,15 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.7.0 — 2026-09-05
+
+- **Drag-and-drop no Kanban**: arraste o card para a próxima etapa (as
+  RN-001/002 seguem validadas no banco — bloqueio de checklist abre o mesmo
+  diálogo de pendências); arrastar para trás abre o fluxo de regressão
+  administrativa (RN-025, só `opp.admin`, justificativa obrigatória);
+  colunas terminais não aceitam arraste (encerramento tem fluxo próprio,
+  RN-008). Realce visual da coluna alvo e do card em movimento; botão
+  "Avançar" preservado.
+
 ## 2.6.0 — 2026-09-05
 
 - **Alertas de projeto parado**: oportunidades abertas sem nenhuma atividade
