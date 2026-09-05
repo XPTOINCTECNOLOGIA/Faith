@@ -35,6 +35,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -46,6 +47,29 @@ import { DS } from '../theme';
 const DRAWER_WIDTH = 240;
 const DRAWER_MINI = 72;
 const NAV_PREF_KEY = 'faith.nav.collapsed';
+
+/** Aparência por tipo de notificação (ícone + tom + rótulo). */
+const NOTIF_META: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
+  nova_oportunidade: { icon: <TravelExploreIcon sx={{ fontSize: 16 }} />, label: 'Nova oportunidade', color: '#14556B', bg: '#DDEFF4' },
+  mudanca_etapa: { icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 16 }} />, label: 'Mudança de etapa', color: '#2B4469', bg: '#EAF1F7' },
+  documento_pendente: { icon: <FactCheckIcon sx={{ fontSize: 16 }} />, label: 'Documento pendente', color: '#B4762A', bg: '#F6EDDD' },
+  documento_rejeitado: { icon: <FactCheckIcon sx={{ fontSize: 16 }} />, label: 'Documento rejeitado', color: '#B4243A', bg: '#F8E6EA' },
+  aprovacao_necessaria: { icon: <FactCheckIcon sx={{ fontSize: 16 }} />, label: 'Aprovação necessária', color: '#B4762A', bg: '#F6EDDD' },
+  contratacao_proxima: { icon: <HandshakeIcon sx={{ fontSize: 16 }} />, label: 'Contratação próxima', color: '#14556B', bg: '#DDEFF4' },
+  prazo_vencido: { icon: <AccessTimeIcon sx={{ fontSize: 16 }} />, label: 'Prazo vencido', color: '#B4243A', bg: '#F8E6EA' },
+  default: { icon: <NotificationsNoneIcon sx={{ fontSize: 16 }} />, label: 'Notificação', color: '#2B4469', bg: '#EAF1F7' },
+};
+
+function tempoRel(iso: string) {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} h`;
+  const d = Math.floor(h / 24);
+  if (d <= 7) return `há ${d} d`;
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
 
 interface NavItem {
   to: string;
@@ -203,7 +227,7 @@ export default function Layout() {
       {!mini && (
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            FAITH v2.4.1 · by XPTO · SSO Tetelestai
+            FAITH v2.5.0 · by XPTO · SSO Tetelestai
           </Typography>
         </Box>
       )}
@@ -306,34 +330,81 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      <Menu anchorEl={notifAnchor} open={!!notifAnchor} onClose={() => setNotifAnchor(null)}>
-        {unread === 0 && <MenuItem disabled>Sem notificações não lidas</MenuItem>}
-        {(notifications.data ?? []).slice(0, 8).map((n) => (
-          <MenuItem
-            key={n.id}
-            component={Link}
-            to={n.opportunityId ? `/oportunidades/${n.opportunityId}` : '/'}
-            onClick={async () => {
-              setNotifAnchor(null);
-              await api.patch(`/notifications/${n.id}/read`);
-              await queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            }}
-            sx={{ whiteSpace: 'normal', maxWidth: 380 }}
-          >
-            <ListItemText primary={n.title} secondary={n.body || undefined} />
-          </MenuItem>
-        ))}
-        {unread > 0 && (
-          <MenuItem
-            onClick={async () => {
-              setNotifAnchor(null);
-              await api.patch('/notifications/read-all');
-              await queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            }}
-          >
-            <Typography sx={{ color: DS.ardosia, fontWeight: 600 }}>Marcar todas como lidas</Typography>
-          </MenuItem>
+      <Menu
+        anchorEl={notifAnchor}
+        open={!!notifAnchor}
+        onClose={() => setNotifAnchor(null)}
+        slotProps={{ paper: { sx: { width: 400, maxWidth: 'calc(100vw - 24px)' } } }}
+      >
+        <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center' }}>
+          <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+            Notificações {unread > 0 && `(${unread})`}
+          </Typography>
+          {unread > 0 && (
+            <Typography
+              variant="caption"
+              role="button"
+              tabIndex={0}
+              onClick={async () => {
+                setNotifAnchor(null);
+                await api.patch('/notifications/read-all');
+                await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+              }}
+              sx={{ color: DS.ardosia, fontWeight: 700, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+            >
+              Marcar todas como lidas
+            </Typography>
+          )}
+        </Box>
+        <Divider />
+        {unread === 0 && (
+          <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+            <NotificationsNoneIcon sx={{ color: 'text.disabled' }} />
+            <Typography variant="body2" color="text.secondary">
+              Tudo em dia — nenhuma notificação não lida.
+            </Typography>
+          </Box>
         )}
+        <Box sx={{ maxHeight: 420, overflowY: 'auto' }}>
+          {(notifications.data ?? []).slice(0, 20).map((n) => {
+            const meta = NOTIF_META[n.type] ?? NOTIF_META.default;
+            return (
+              <MenuItem
+                key={n.id}
+                component={Link}
+                to={n.opportunityId ? `/oportunidades/${n.opportunityId}` : '/'}
+                onClick={async () => {
+                  setNotifAnchor(null);
+                  await api.patch(`/notifications/${n.id}/read`);
+                  await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                }}
+                sx={{ whiteSpace: 'normal', alignItems: 'flex-start', gap: 1.25, py: 1 }}
+              >
+                <Box
+                  sx={{
+                    width: 30, height: 30, borderRadius: '50%', flexShrink: 0, mt: 0.25,
+                    display: 'grid', placeItems: 'center', bgcolor: meta.bg, color: meta.color,
+                  }}
+                >
+                  {meta.icon}
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={600}>
+                    {n.title}
+                  </Typography>
+                  {n.body && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {n.body}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" sx={{ color: DS.aco }}>
+                    {tempoRel(n.createdAt)} · {meta.label}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            );
+          })}
+        </Box>
       </Menu>
 
       <Menu anchorEl={userAnchor} open={!!userAnchor} onClose={() => setUserAnchor(null)}>
