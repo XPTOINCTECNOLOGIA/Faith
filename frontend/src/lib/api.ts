@@ -817,6 +817,8 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       if (qp.get('entity')) q = q.eq('entity', qp.get('entity')!);
       if (qp.get('action')) q = q.eq('action', qp.get('action')!);
       if (qp.get('opportunityId')) q = q.eq('opportunity_id', Number(qp.get('opportunityId')));
+      if (qp.get('from')) q = q.gte('occurred_at', `${qp.get('from')}T00:00:00`);
+      if (qp.get('to')) q = q.lte('occurred_at', `${qp.get('to')}T23:59:59.999`);
       const size = Number(qp.get('pageSize') ?? 20);
       const page = Math.max(1, Number(qp.get('page') ?? 1));
       const from = (page - 1) * size;

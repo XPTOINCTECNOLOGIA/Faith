@@ -1,5 +1,13 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.7.1 — 2026-09-05
+
+- **Trilha de auditoria completa para a governança**: filtros por período
+  (de/até) e por número da oportunidade somam-se aos de entidade/ação, e o
+  botão "Exportar" gera CSV pt-BR com até 2.000 eventos respeitando os
+  filtros ativos (quando, ator, entidade, ação, campo, anterior → novo,
+  oportunidade).
+
 ## 2.7.0 — 2026-09-05
 
 - **Drag-and-drop no Kanban**: arraste o card para a próxima etapa (as

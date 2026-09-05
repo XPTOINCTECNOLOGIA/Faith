@@ -227,7 +227,7 @@ export default function Layout() {
       {!mini && (
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            FAITH v2.7.0 · by XPTO · SSO Tetelestai
+            FAITH v2.7.1 · by XPTO · SSO Tetelestai
           </Typography>
         </Box>
       )}
