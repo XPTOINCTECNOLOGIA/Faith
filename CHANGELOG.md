@@ -1,5 +1,12 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.4.1 — 2026-09-05
+
+- **Infra Azure**: fallback do cliente Supabase corrigido para
+  `https://api.xptoinc.com.br` (Supabase self-hosted no Azure) — nenhum
+  build, mesmo local/sem env, aponta mais para o projeto `*.supabase.co`
+  em desligamento. Produção segue com a URL injetada pelo GitHub Actions.
+
 ## 2.4.0 — 2026-09-03
 
 - **GED — repositório eletrônico do projeto** (aba Documentos repaginada):
