@@ -1,5 +1,13 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.5.0 — 2026-09-05
+
+- **Central de notificações**: o sino do header ganhou cabeçalho com
+  contador e "marcar todas como lidas", ícone e tom por tipo de evento
+  (nova oportunidade, mudança de etapa, documentos, contratação próxima,
+  prazo vencido), tempo relativo ("há 2 h"), corpo da mensagem e lista com
+  rolagem; clicar leva à oportunidade e marca como lida.
+
 ## 2.4.1 — 2026-09-05
 
 - **Infra Azure**: fallback do cliente Supabase corrigido para
