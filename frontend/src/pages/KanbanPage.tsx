@@ -25,8 +25,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
+import { idleDias, idleNivel, type LastActivityMap } from '../lib/activity';
 import { formatBRL, LEAD_SOURCE_LABEL, type KanbanColumn } from '../lib/types';
-import { SOURCE_HEX } from '../theme';
+import { SOURCE_HEX, STATE_SOFT } from '../theme';
 
 const SOURCE_COLOR: Record<string, 'primary' | 'warning' | 'success'> = {
   xpto: 'primary',
@@ -50,6 +51,11 @@ export default function KanbanPage() {
     queryKey: ['kanban'],
     queryFn: () => api.get<KanbanColumn[]>('/opportunities/kanban'),
     refetchInterval: 30_000,
+  });
+  const lastActivity = useQuery({
+    queryKey: ['activity-last'],
+    queryFn: () => api.get<LastActivityMap>('/activity/last'),
+    staleTime: 60_000,
   });
 
   const advance = useMutation({
@@ -114,7 +120,10 @@ export default function KanbanPage() {
               </Stack>
 
               <Stack spacing={1}>
-                {col.cards.map((card) => (
+                {col.cards.map((card) => {
+                  const dias = col.isTerminal ? null : idleDias(lastActivity.data?.[String(card.id)]);
+                  const nivel = idleNivel(dias);
+                  return (
                   <Card key={card.id} sx={{ borderLeft: '3px solid', borderLeftColor: SOURCE_HEX[card.leadSource] ?? 'divider' }}>
                     <CardActionArea component={Link} to={`/oportunidades/${card.id}`} sx={{ p: 1.5 }}>
                       <Stack spacing={0.75}>
@@ -122,11 +131,26 @@ export default function KanbanPage() {
                           <Typography variant="body2" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
                             {card.clientName ?? '—'}
                           </Typography>
-                          {card.overdue && (
-                            <Tooltip title="Prazo de fechamento vencido">
-                              <WarningAmberIcon color="warning" fontSize="small" />
-                            </Tooltip>
-                          )}
+                          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+                            {nivel !== 'ok' && (
+                              <Tooltip title={`Sem atividade registrada há ${dias} dias`}>
+                                <Chip
+                                  size="small"
+                                  label={`parado ${dias} d`}
+                                  sx={{
+                                    height: 20, fontSize: 11,
+                                    bgcolor: nivel === 'crit' ? STATE_SOFT.error.bg : STATE_SOFT.warning.bg,
+                                    color: nivel === 'crit' ? STATE_SOFT.error.color : STATE_SOFT.warning.color,
+                                  }}
+                                />
+                              </Tooltip>
+                            )}
+                            {card.overdue && (
+                              <Tooltip title="Prazo de fechamento vencido">
+                                <WarningAmberIcon color="warning" fontSize="small" />
+                              </Tooltip>
+                            )}
+                          </Stack>
                         </Stack>
                         <Typography variant="caption" color="text.secondary">
                           {card.code}
@@ -177,7 +201,8 @@ export default function KanbanPage() {
                       </Stack>
                     </CardActionArea>
                   </Card>
-                ))}
+                  );
+                })}
               </Stack>
             </Box>
           );

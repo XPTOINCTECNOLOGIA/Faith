@@ -15,6 +15,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { idleDias, idleNivel, type LastActivityMap } from '../lib/activity';
 import { brl0, buildPinGroups } from '../lib/geo';
 import { ACTION_LABEL, ENTITY_LABEL } from '../lib/labels';
 import {
@@ -84,6 +85,11 @@ export default function DashboardPage() {
     queryKey: ['dash-audit'],
     queryFn: () => api.get<PageOf<AuditRow>>('/audit?pageSize=8'),
   });
+  const lastActivity = useQuery({
+    queryKey: ['activity-last'],
+    queryFn: () => api.get<LastActivityMap>('/activity/last'),
+    staleTime: 60_000,
+  });
 
   const rd = radar.data ?? [];
   const pinGroups = useMemo(() => buildPinGroups(rd), [rd]);
@@ -116,6 +122,13 @@ export default function DashboardPage() {
     .filter((o) => o.expectedCloseDate)
     .sort((a, b) => String(a.expectedCloseDate).localeCompare(String(b.expectedCloseDate)))
     .slice(0, 5);
+
+  // Projetos parados: abertas sem atividade na auditoria há 14+ dias
+  const parados = (open.data?.items ?? [])
+    .map((o) => ({ o, dias: idleDias(lastActivity.data?.[String(o.id)]) }))
+    .filter((x): x is { o: Opportunity; dias: number } => x.dias != null && idleNivel(x.dias) !== 'ok')
+    .sort((a, b) => b.dias - a.dias)
+    .slice(0, 6);
 
   return (
     <Box>
@@ -301,7 +314,9 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Linha 4 — atividades recentes */}
+      {/* Linha 4 — atividades recentes + projetos parados */}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, lg: 7 }}>
       <ChartCard title="Atividades recentes" to="/auditoria">
         <Grid container spacing={1.5}>
           {(audit.data?.items ?? []).map((a) => (
@@ -330,6 +345,50 @@ export default function DashboardPage() {
           )}
         </Grid>
       </ChartCard>
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 5 }}>
+          <ChartCard title="Projetos parados" to="/pipeline">
+            <Stack spacing={1.25}>
+              {parados.map(({ o, dias }) => {
+                const nivel = idleNivel(dias);
+                const tone = nivel === 'crit' ? STATE_SOFT.error : STATE_SOFT.warning;
+                return (
+                  <Stack
+                    key={o.id}
+                    direction="row"
+                    spacing={1.25}
+                    alignItems="center"
+                    component={Link}
+                    to={`/oportunidades/${o.id}`}
+                    sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { bgcolor: DS.navySoft }, borderRadius: 1.5, px: 0.75, py: 0.5 }}
+                  >
+                    <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>
+                        {o.client?.name ?? o.objeto}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                        {o.code} · {o.stage?.name ?? '—'}
+                        {o.valorEstimado != null ? ` · ${formatBRL(o.valorEstimado)}` : ''}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      size="small"
+                      label={`${dias} d parado`}
+                      sx={{ bgcolor: tone.bg, color: tone.color, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
+                    />
+                  </Stack>
+                );
+              })}
+              {parados.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  Nenhum projeto aberto sem atividade há mais de 14 dias — carteira em movimento. 🎯
+                </Typography>
+              )}
+            </Stack>
+          </ChartCard>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

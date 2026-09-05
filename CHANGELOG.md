@@ -1,5 +1,13 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.6.0 — 2026-09-05
+
+- **Alertas de projeto parado**: oportunidades abertas sem nenhuma atividade
+  registrada na auditoria há 14+ dias ganham chip "parado N d" no card do
+  Kanban (âmbar; vermelho a partir de 30 dias), e o Dashboard ganhou o
+  painel "Projetos parados" com os casos mais críticos, valor e etapa —
+  pauta pronta de cobrança para a gestão.
+
 ## 2.5.0 — 2026-09-05
 
 - **Central de notificações**: o sino do header ganhou cabeçalho com
