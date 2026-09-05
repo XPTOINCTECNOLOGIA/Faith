@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 // *.supabase.co — projeto antigo em desligamento (ver CLAUDE.md).
 const DEFAULT_URL = 'https://api.xptoinc.com.br';
 const DEFAULT_ANON =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmZpZnhpcXZ6dGN3ZWdheW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3ODg0MjEsImV4cCI6MjEwMjM2NDQyMX0.1RQNgYjj9Zhg4YOm9m0kKTQ7Sk3MYemJ_bXOFoXVE1U';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmZpZnhpcXZ6dGN3ZWdheW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3ODg0MjEsImV4cCI6MjEwMjM2NDQyMX0.DSOSXSfxHNiIgMOy-pJMPQuMDd4JJmyhzG_9jGxnt2c';
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL ?? DEFAULT_URL,

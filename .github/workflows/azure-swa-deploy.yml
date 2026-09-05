@@ -24,7 +24,7 @@ jobs:
       - name: Instalar e buildar
         env:
           VITE_SUPABASE_URL: https://api.xptoinc.com.br
-          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmZpZnhpcXZ6dGN3ZWdheW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3ODg0MjEsImV4cCI6MjEwMjM2NDQyMX0.1RQNgYjj9Zhg4YOm9m0kKTQ7Sk3MYemJ_bXOFoXVE1U
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmZpZnhpcXZ6dGN3ZWdheW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3ODg0MjEsImV4cCI6MjEwMjM2NDQyMX0.DSOSXSfxHNiIgMOy-pJMPQuMDd4JJmyhzG_9jGxnt2c
         run: |
           pnpm install --frozen-lockfile
           pnpm build
