@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Box,
+  Button,
   Card,
   Chip,
   LinearProgress,
@@ -18,6 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -60,11 +62,22 @@ const truncate = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n)}…` : 
 export default function AuditPage() {
   const [entity, setEntity] = useState('');
   const [action, setAction] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [oppId, setOppId] = useState('');
   const [page, setPage] = useState(0); // 0-based (TablePagination)
+  const [exporting, setExporting] = useState(false);
 
-  const qs = new URLSearchParams({ pageSize: String(PAGE_SIZE), page: String(page + 1) });
-  if (entity) qs.set('entity', entity);
-  if (action) qs.set('action', action);
+  function buildQs(pageSize: number, pageNum: number) {
+    const q = new URLSearchParams({ pageSize: String(pageSize), page: String(pageNum) });
+    if (entity) q.set('entity', entity);
+    if (action) q.set('action', action);
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    if (oppId.trim() && Number(oppId) > 0) q.set('opportunityId', String(Number(oppId)));
+    return q;
+  }
+  const qs = buildQs(PAGE_SIZE, page + 1);
 
   const audit = useQuery({
     queryKey: ['audit', qs.toString()],
@@ -72,6 +85,36 @@ export default function AuditPage() {
   });
 
   const rows = audit.data?.items ?? [];
+  const resetPage = () => setPage(0);
+
+  /** Exporta os eventos com os filtros atuais (até 2000) em CSV pt-BR. */
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const all = await api.get<Page<AuditRow>>(`/audit?${buildQs(2000, 1).toString()}`);
+      const esc = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+      const head = 'quando;ator;entidade;id;acao;campo;anterior;novo;oportunidade';
+      const lines = (all.items ?? []).map((r) =>
+        [
+          new Date(r.occurredAt).toLocaleString('pt-BR'),
+          esc(r.actorName ?? 'Sistema'),
+          entityLabel(r.entity), String(r.entityId), actionLabel(r.action),
+          r.field ?? '', esc(r.oldValue ?? ''), esc(r.newValue ?? ''),
+          r.opportunityId ? String(r.opportunityId) : '',
+        ].join(';'),
+      );
+      const url = URL.createObjectURL(
+        new Blob(['﻿' + [head, ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `faith-auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <Box>
@@ -90,8 +133,8 @@ export default function AuditPage() {
           size="small"
           label="Entidade"
           value={entity}
-          onChange={(e) => { setEntity(e.target.value); setPage(0); }}
-          sx={{ minWidth: 190 }}
+          onChange={(e) => { setEntity(e.target.value); resetPage(); }}
+          sx={{ minWidth: 180 }}
         >
           <MenuItem value="">Todas</MenuItem>
           {Object.entries(ENTITY_LABEL).map(([code, label]) => (
@@ -105,8 +148,8 @@ export default function AuditPage() {
           size="small"
           label="Ação"
           value={action}
-          onChange={(e) => { setAction(e.target.value); setPage(0); }}
-          sx={{ minWidth: 210 }}
+          onChange={(e) => { setAction(e.target.value); resetPage(); }}
+          sx={{ minWidth: 190 }}
         >
           <MenuItem value="">Todas</MenuItem>
           {Object.entries(ACTION_LABEL).map(([code, label]) => (
@@ -115,6 +158,41 @@ export default function AuditPage() {
             </MenuItem>
           ))}
         </TextField>
+        <TextField
+          size="small"
+          type="date"
+          label="De"
+          value={from}
+          onChange={(e) => { setFrom(e.target.value); resetPage(); }}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 160 }}
+        />
+        <TextField
+          size="small"
+          type="date"
+          label="Até"
+          value={to}
+          onChange={(e) => { setTo(e.target.value); resetPage(); }}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 160 }}
+        />
+        <TextField
+          size="small"
+          type="number"
+          label="Oportunidade #"
+          value={oppId}
+          onChange={(e) => { setOppId(e.target.value); resetPage(); }}
+          sx={{ width: 140 }}
+          inputProps={{ min: 1 }}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<FileDownloadOutlinedIcon />}
+          onClick={() => void exportCsv()}
+          disabled={exporting || (audit.data?.total ?? 0) === 0}
+        >
+          Exportar
+        </Button>
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Tudo que acontece na plataforma fica registrado — quem fez, o quê e quando.
