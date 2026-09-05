@@ -795,6 +795,23 @@ async function dispatch(method: string, path: string, body?: any, form?: FormDat
       }));
     }
 
+    // Última atividade por oportunidade (auditoria) — base dos alertas de
+    // "projeto parado" no Kanban e no Dashboard.
+    if (p === '/activity/last') {
+      const { data, error } = await supabase.from('opp_audit_log')
+        .select('opportunity_id, occurred_at')
+        .not('opportunity_id', 'is', null)
+        .order('occurred_at', { ascending: false })
+        .limit(2000);
+      if (error) fail(error);
+      const map: Record<string, string> = {};
+      for (const r of (data ?? []) as Array<{ opportunity_id: number; occurred_at: string }>) {
+        const id = String(r.opportunity_id);
+        if (!(id in map)) map[id] = r.occurred_at;
+      }
+      return map;
+    }
+
     if (p === '/audit') {
       let q = supabase.from('opp_audit_log').select('*, actor:users(full_name)', { count: 'exact' });
       if (qp.get('entity')) q = q.eq('entity', qp.get('entity')!);
