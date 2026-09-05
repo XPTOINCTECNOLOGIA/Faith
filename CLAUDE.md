@@ -1,5 +1,3 @@
-
-
 <!-- xpto-azure-infra: gerado na migração para Azure. Não remover. -->
 # ⚙️ Infra XPTO no Azure — LEIA ANTES DE MEXER
 
@@ -10,14 +8,20 @@ O **Azure é a produção ÚNICA**. Dados reconciliados; a Vercel/banco antigo e
 - **Backend de dados (Supabase self-hosted no Azure):** `https://api.xptoinc.com.br`
   - ⚠️ **NUNCA** aponte o app para `*.supabase.co` (projeto antigo `svnfifxiqvztcwegayos`, congelado / em desligamento).
   - `VITE_SUPABASE_ANON_KEY` é a chave anônima compartilhada do ecossistema (pública, protegida por RLS).
-- **Hospedagem:** Static Web App / Container App no Azure (detalhe por app abaixo, se houver).
+- **Hospedagem:** Static Web App / Container App no Azure.
 
-## Deploy (AUTOMÁTICO — não faça deploy manual)
-- Um **push/merge na branch padrão** do repo dispara o **GitHub Actions**, que builda e publica no Azure.
-  - Workflow em `.github/workflows/`. O build injeta `VITE_SUPABASE_URL=https://api.xptoinc.com.br` (não dependa de `.env` local p/ produção).
-  - Secret de organização `AZURE_CREDENTIALS` já configurado (org XPTOINCTECNOLOGIA).
-  - Use a **disciplina de PR + squash** do repositório (o merge do PR já dispara o deploy). Rode os testes/checagens antes de commitar.
+## Deploy do app (AUTOMÁTICO — não faça deploy manual)
+- Um **push/merge na branch padrão** dispara o **GitHub Actions**, que builda e publica no Azure.
+  - O build injeta `VITE_SUPABASE_URL=https://api.xptoinc.com.br`. Secret de org `AZURE_CREDENTIALS` já configurado.
+  - Use a **disciplina de PR + squash** do repositório. Rode os testes/checagens antes de commitar.
+
+## Migrations de banco (mudanças de ESTRUTURA) — IMPORTANTE
+- ⚠️ As ferramentas Supabase (MCP) e o sistema de migrations antigo (drizzle/supabase/CLI) apontam para
+  o **projeto ANTIGO CONGELADO** — **NÃO** os use para alterar o banco do Azure.
+- Para mudança de estrutura (nova tabela, coluna, função, política RLS, grant): crie um arquivo `.sql`
+  numerado em **`db/azure-migrations/`** (ex.: `001_nova_tabela.sql`). Ao dar merge na branch padrão, o
+  workflow **"DB migrations -> Azure"** aplica os arquivos novos no backend Azure automaticamente
+  (transacional e idempotente, rastreado em `public._xpto_migrations`). Mantenha cada arquivo < ~150 KB.
 
 ## Observações
-- O ecossistema todo (8 apps) roda no Azure com deploy automático, backups (banco + VM), HSTS, WAF (Cloudflare) e permissão mínima de e-mail.
 - Segurança de banco: o papel `anon` está alinhado à produção (SELECT/EXECUTE mínimos) — não afrouxe grants sem necessidade.
