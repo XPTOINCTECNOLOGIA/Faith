@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 
 import { supabase } from "./lib/supabase";
-import { registerApplication } from "./lib/shaar-guard.js";
+import { registerApplication, adoptarSessao } from "./lib/shaar-guard.js";
 
 // Fronteira do SHAAR — EM VIGOR.
 //
@@ -16,16 +16,9 @@ import { registerApplication } from "./lib/shaar-guard.js";
 // sessão — que é precisamente o defeito que isto corrige.
 async function iniciar() {
   const eu = await registerApplication({ app: "FAITH", modo: "exigir" });
-  if (eu?.sessao?.access_token) {
-    try {
-      await supabase.auth.setSession({
-        access_token: eu.sessao.access_token,
-        refresh_token: eu.sessao.refresh_token,
-      });
-    } catch (e) {
-      console.warn("[shaar-guard] não consegui adoptar a sessão:", e);
-    }
-  }
+  // adoptarSessao confirma que a sessão colou; se não colar, devolve a
+  // pessoa ao SHAAR em vez de mostrar o login desta aplicação
+  if (!(await adoptarSessao(supabase, eu, { app: "FAITH" }))) return;
 
 
 
