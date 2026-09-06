@@ -31,11 +31,12 @@ export default function NoAccessPage() {
               Você ainda não tem acesso ao FAITH
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              A conta <b>{me?.email}</b> está ativa no ecossistema, mas o perfil{' '}
-              <b>{me?.profile}</b> não possui permissões do Portal de Oportunidades.
+              A conta <b>{me?.email}</b> está ativa no ecossistema, mas ainda não tem
+              permissões do Portal de Oportunidades concedidas na Central (SHAAR).
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Solicite a liberação à Governança da XPTO e entre novamente.
+              Solicite a concessão à Governança da XPTO — as permissões são individuais —
+              e entre novamente.
             </Typography>
             <Stack direction="row" spacing={1.5} justifyContent="center">
               <Button variant="outlined" onClick={() => void signOut()}>

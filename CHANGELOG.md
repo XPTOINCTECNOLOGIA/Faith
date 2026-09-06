@@ -1,5 +1,15 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.9.0 — 2026-09-06
+
+- **A UI pergunta à Central (SHAAR)**: os menus e botões deixam de ser
+  montados a partir do perfil (`profile_permissions`) e passam a refletir as
+  permissões individuais da Central — `me()` chama a nova RPC
+  `shaar_minhas_permissoes('FAITH')` (migration 028 do SHAAR), que responde
+  código a código via `shaar_pode`. Perfil segue apenas como informação de
+  exibição; a tela de "sem acesso" agora orienta para a concessão individual
+  na Central. O RLS já obedecia à Central desde a ligação do FAITH (010).
+
 ## 2.8.0 — 2026-09-05
 
 - **Dashboard operacional (1 clique até o dado)**: todos os KPIs viraram
