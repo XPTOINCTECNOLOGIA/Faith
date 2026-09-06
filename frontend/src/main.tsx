@@ -2,27 +2,40 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-import { registerApplication, type Veredicto } from "./lib/shaar-guard.js";
+import { supabase } from "./lib/supabase";
+import { registerApplication } from "./lib/shaar-guard.js";
 
 // Fronteira do SHAAR — EM VIGOR.
 //
-// Verifica o bilhete emitido pelo SHAAR e diz o que teria feito, mas nao
-// barra ninguem. Nada muda para quem usa esta aplicacao hoje.
+// O bilhete AUTORIZA; a sessão é o que dispensa novo login. Cada aplicação
+// vive num subdomínio próprio, com armazenamento próprio: sem adoptar a
+// sessão que o SHAAR entrega, esta aplicação pediria credenciais outra vez.
 //
-// Passar a valer e trocar "observar" por "exigir", nesta linha, depois de a
-// observacao mostrar que so entra quem devia. Ligar sem essa etapa seria
-// descobrir os casos que faltam atraves de gente sem conseguir trabalhar.
-registerApplication({
-  app: "FAITH",
-  modo: "exigir",
-  aoObservar: (v: Veredicto) => {
-    if (!v.ok) console.warn("[shaar-guard] seria barrado:", v.motivo);
-  },
-}).catch((e: unknown) => console.warn("[shaar-guard] indisponivel:", e));
+// A ordem importa. Renderizar antes de a sessão estar posta faz a aplicação
+// desenhar o seu próprio ecrã de login e só depois descobrir que já havia
+// sessão — que é precisamente o defeito que isto corrige.
+async function iniciar() {
+  const eu = await registerApplication({ app: "FAITH", modo: "exigir" });
+  if (eu?.sessao?.access_token) {
+    try {
+      await supabase.auth.setSession({
+        access_token: eu.sessao.access_token,
+        refresh_token: eu.sessao.refresh_token,
+      });
+    } catch (e) {
+      console.warn("[shaar-guard] não consegui adoptar a sessão:", e);
+    }
+  }
 
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+
+
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+void iniciar();
