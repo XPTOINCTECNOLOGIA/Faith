@@ -55,17 +55,18 @@ async function me(): Promise<MeRow> {
   if (!u) throw new ApiError(403, 'Acesso não provisionado: sua conta corporativa não está cadastrada na base de usuários.');
   if (!u.active || u.blocked) throw new ApiError(403, 'Conta inativa ou bloqueada na base corporativa.');
 
-  const { data: pp, error: e2 } = await supabase
-    .from('profile_permissions')
-    .select('permissions(code, active)')
-    .eq('profile_id', u.profile_id);
-  if (e2) throw new ApiError(500, e2.message);
+  // Quem decide é a Central (SHAAR): permissões efetivas da pessoa via
+  // shaar_pode, código a código. Perfil NÃO é autoridade — segue no me()
+  // apenas como informação de exibição (docs/PERMISSOES-PARA-AGENTES.md).
+  const { data: perms, error: e2 } = await supabase.rpc('shaar_minhas_permissoes', {
+    p_app: 'FAITH',
+  });
+  if (e2) throw new ApiError(500, `Central de permissões indisponível: ${e2.message}`);
 
-  const permissions = (pp ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- embed PostgREST
-    .map((r: any) => r.permissions)
-    .filter((p): p is { code: string; active: boolean } => !!p && p.active && p.code.startsWith('opp.'))
-    .map((p) => p.code);
+  const permissions = (perms ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- linha PostgREST
+    .map((r: any) => (typeof r === 'string' ? r : r.code))
+    .filter((c: string) => !!c && c.startsWith('opp.'));
 
   const meRow: MeRow = {
     id: Number(u.id),
