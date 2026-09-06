@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -17,7 +17,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import PublicIcon from '@mui/icons-material/Public';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import GeoMap from '../components/GeoMap';
 import { api } from '../lib/api';
 import { brl0, buildPinGroups, type PinGroup } from '../lib/geo';
@@ -27,6 +27,8 @@ import { DS, STATE_SOFT } from '../theme';
 export default function MapPage() {
   const [escopo, setEscopo] = useState<'todas' | 'brasil' | 'internacional'>('todas');
   const [sel, setSel] = useState<PinGroup | null>(null);
+  const [params] = useSearchParams();
+  const pinAplicado = useRef(false);
 
   const radar = useQuery({
     queryKey: ['radar', '', '', ''],
@@ -39,6 +41,18 @@ export default function MapPage() {
     );
     return buildPinGroups(items);
   }, [radar.data, escopo]);
+
+  // Vindo do Dashboard com ?pin=lat,lng: abre o painel da região direto,
+  // sem exigir um segundo clique aqui.
+  useEffect(() => {
+    const pin = params.get('pin');
+    if (!pin || pinAplicado.current || groups.length === 0) return;
+    const g = groups.find((x) => x.key === pin);
+    if (g) {
+      setSel(g);
+      pinAplicado.current = true;
+    }
+  }, [params, groups]);
 
   const totalGeral = groups.reduce((a, g) => a + g.total, 0);
   const nOportunidades = groups.reduce((a, g) => a + g.items.length, 0);
