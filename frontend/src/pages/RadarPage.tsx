@@ -150,7 +150,11 @@ export default function RadarPage() {
   const canWrite = can('opp.create') || can('opp.update');
   const [params] = useSearchParams();
   const [search, setSearch] = useState(params.get('q') ?? '');
-  const [esfera, setEsfera] = useState('');
+  // aceita ?esfera= vindo do Dashboard (grupos de apresentação, incl. Internacional)
+  const esferaParam = params.get('esfera') ?? '';
+  const [esfera, setEsfera] = useState(
+    (GRUPOS as readonly string[]).includes(esferaParam) ? esferaParam : '',
+  );
   const [uf, setUf] = useState('');
   const [view, setView] = useState<'lista' | 'tabela'>('lista');
   const [sortBy, setSortBy] = useState<'valor' | 'objeto' | 'health'>('valor');

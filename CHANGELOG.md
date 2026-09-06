@@ -1,5 +1,20 @@
 # Changelog — FAITH · Portal de Oportunidades XPTO + SERPRO
 
+## 2.8.0 — 2026-09-05
+
+- **Dashboard operacional (1 clique até o dado)**: todos os KPIs viraram
+  cards clicáveis (hover com elevação, área inteira, teclado) — "Total de
+  oportunidades" e o hero abrem /oportunidades; receita e conversão abrem
+  /pipeline. Cada barra de "Pipeline por estágio" navega para
+  `/pipeline?etapa=<id>` com a coluna em destaque (rolagem automática +
+  chip "Em foco" removível); skeleton no carregamento. A legenda do donut
+  "Prospecção por esfera" abre /oportunidades já filtrado
+  (`?esfera=Federal|Internacional|Estadual|Municipal`).
+- **Mapa sem duplo clique**: clicar num pin do mapa do Dashboard abre o
+  Mapa Global com o painel daquela região já aberto (`/mapa?pin=lat,lng`),
+  reaproveitando handlers e cache de dados existentes (nenhuma consulta
+  duplicada).
+
 ## 2.7.1 — 2026-09-05
 
 - **Trilha de auditoria completa para a governança**: filtros por período

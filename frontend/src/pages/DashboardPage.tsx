@@ -3,11 +3,13 @@ import {
   Alert,
   Box,
   Card,
+  CardActionArea,
   CardContent,
   Chip,
   CircularProgress,
   Grid2 as Grid,
   LinearProgress,
+  Skeleton,
   Stack,
   Tooltip,
   Typography,
@@ -149,8 +151,12 @@ export default function DashboardPage() {
               background: DS.navy,
               color: '#ffffff',
               boxShadow: '0 10px 24px rgba(16,24,40,.30)',
+              transition: 'transform .15s ease, box-shadow .15s ease',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 14px 30px rgba(16,24,40,.40)' },
+              '&:active': { transform: 'translateY(0)' },
             }}
           >
+            <CardActionArea component={Link} to="/oportunidades" sx={{ height: '100%' }} aria-label="Valor total: abrir oportunidades">
             <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
               <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.6, color: 'rgba(255,255,255,.78)' }}>
                 Valor total (pipeline + radar)
@@ -162,19 +168,22 @@ export default function DashboardPage() {
                 {formatBRL(s.pipelineTotal)} em governança · {formatBRL(radarTotal)} em prospecção
               </Typography>
             </CardContent>
+            </CardActionArea>
           </Card>
         </Grid>
         <Kpi
           label="Total de oportunidades"
           value={String(s.totalOpportunities + rd.length)}
           hint={`${s.open} no pipeline · ${rd.length} em prospecção`}
+          to="/oportunidades"
         />
-        <Kpi label="Previsão de receita" value={formatBRL(s.weightedForecast)} hint="ponderada por probabilidade" />
+        <Kpi label="Previsão de receita" value={formatBRL(s.weightedForecast)} hint="ponderada por probabilidade" to="/pipeline" />
         <Kpi
           label="Taxa de conversão"
           value={s.conversionRate == null ? '—' : `${Math.round(s.conversionRate * 100)}%`}
           hint={s.overdue > 0 ? `${s.overdue} com prazo vencido` : 'nenhum prazo vencido'}
           warn={s.overdue > 0}
+          to="/pipeline"
         />
       </Grid>
 
@@ -190,7 +199,8 @@ export default function DashboardPage() {
                   </Box>
                 }
               >
-                <GeoMap groups={pinGroups} onPinClick={() => navigate('/mapa')} />
+                {/* 1 clique: abre o Mapa Global já com o painel da região selecionada */}
+                <GeoMap groups={pinGroups} onPinClick={(g) => navigate(`/mapa?pin=${encodeURIComponent(g.key)}`)} />
               </Suspense>
             </Box>
           </ChartCard>
@@ -202,6 +212,7 @@ export default function DashboardPage() {
                 rows={porEsfera.map((g) => ({ label: g.label, value: g.value, count: g.count, color: ESFERA_HEX[g.label] }))}
                 centerLabel="estimados"
                 centerValue={brl0(radarTotal)}
+                onRowClick={(esfera) => navigate(`/oportunidades?esfera=${encodeURIComponent(esfera)}`)}
               />
             </ChartCard>
             <ChartCard title="Por hunter / origem">
@@ -235,11 +246,20 @@ export default function DashboardPage() {
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, lg: 4 }}>
           <ChartCard title="Pipeline por estágio" to="/pipeline">
-            <BarList
-              rows={(byStage.data ?? []).map((r) => ({ key: r.stageId, label: r.name, value: r.totalValue, hint: `${r.count}` }))}
-              color={SINGLE}
-              money
-            />
+            {byStage.isLoading ? (
+              <Stack spacing={1.5}>
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} variant="rounded" height={26} />
+                ))}
+              </Stack>
+            ) : (
+              <BarList
+                rows={(byStage.data ?? []).map((r) => ({ key: r.stageId, label: r.name, value: r.totalValue, hint: `${r.count}` }))}
+                color={SINGLE}
+                money
+                onRowClick={(stageId) => navigate(`/pipeline?etapa=${stageId}`)}
+              />
+            )}
           </ChartCard>
         </Grid>
         <Grid size={{ xs: 12, lg: 4 }}>
@@ -395,23 +415,42 @@ export default function DashboardPage() {
 
 /* ── componentes do dashboard ──────────────────────────────────────────────── */
 
-function Kpi({ label, value, hint, warn }: { label: string; value: string; hint?: string; warn?: boolean }) {
+/** KPI clicável: o card inteiro navega (SPA) para a lista correspondente. */
+function Kpi({ label, value, hint, warn, to }: { label: string; value: string; hint?: string; warn?: boolean; to?: string }) {
+  const body = (
+    <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+      <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.6 }}>
+        {label}
+      </Typography>
+      <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums', my: 0.25 }}>
+        {value}
+      </Typography>
+      {hint && (
+        <Typography variant="caption" sx={{ color: warn ? 'warning.main' : 'text.secondary', fontWeight: warn ? 600 : 400 }}>
+          {hint}
+        </Typography>
+      )}
+    </CardContent>
+  );
   return (
     <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-      <Card sx={{ height: '100%' }}>
-        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-          <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.6 }}>
-            {label}
-          </Typography>
-          <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums', my: 0.25 }}>
-            {value}
-          </Typography>
-          {hint && (
-            <Typography variant="caption" sx={{ color: warn ? 'warning.main' : 'text.secondary', fontWeight: warn ? 600 : 400 }}>
-              {hint}
-            </Typography>
-          )}
-        </CardContent>
+      <Card
+        sx={{
+          height: '100%',
+          transition: 'transform .15s ease, box-shadow .15s ease',
+          ...(to && {
+            '&:hover': { transform: 'translateY(-2px)', boxShadow: DS.shadowMd, borderColor: DS.aco },
+            '&:active': { transform: 'translateY(0)' },
+          }),
+        }}
+      >
+        {to ? (
+          <CardActionArea component={Link} to={to} sx={{ height: '100%' }} aria-label={`${label}: abrir lista`}>
+            {body}
+          </CardActionArea>
+        ) : (
+          body
+        )}
       </Card>
     </Grid>
   );
@@ -449,13 +488,42 @@ function ChartCard({
 
 interface BarRow { key: string | number; label: string; value: number; hint?: string }
 
-function BarList({ rows, color, money }: { rows: BarRow[]; color: string; money?: boolean }) {
+function BarList({
+  rows,
+  color,
+  money,
+  onRowClick,
+}: {
+  rows: BarRow[];
+  color: string;
+  money?: boolean;
+  /** Torna cada linha um ponto de navegação (cursor, hover e teclado). */
+  onRowClick?: (key: string | number) => void;
+}) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
-    <Stack spacing={1}>
+    <Stack spacing={onRowClick ? 0.5 : 1}>
       {rows.map((r) => (
-        <Tooltip key={r.key} title={`${r.label}: ${money ? formatBRL(r.value) : r.value}${r.hint ? ` · ${r.hint} oportunidade(s)` : ''}`}>
-          <Box>
+        <Tooltip
+          key={r.key}
+          title={`${r.label}: ${money ? formatBRL(r.value) : r.value}${r.hint ? ` · ${r.hint} oportunidade(s)` : ''}${onRowClick ? ' — clique para abrir' : ''}`}
+        >
+          <Box
+            role={onRowClick ? 'button' : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            onClick={onRowClick ? () => onRowClick(r.key) : undefined}
+            onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(r.key); } } : undefined}
+            sx={
+              onRowClick
+                ? {
+                    cursor: 'pointer', borderRadius: 1.5, px: 0.75, py: 0.5, mx: -0.75,
+                    transition: 'background-color .12s',
+                    '&:hover': { bgcolor: DS.primarySoft },
+                    '&:focus-visible': { outline: `2px solid ${DS.primary}`, outlineOffset: 1 },
+                  }
+                : undefined
+            }
+          >
             <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.25 }}>
               <Typography variant="caption" sx={{ color: DS.textPrimary, fontWeight: 500 }} noWrap>
                 {r.label}
@@ -483,7 +551,17 @@ interface DonutRow { label: string; value: number; count: number; color: string 
 
 /** Donut SVG (parte-de-um-todo, ≤ 4 segmentos): gap de 2px entre fatias,
  * tooltip por fatia e legenda com valores em tinta de texto. */
-function Donut({ rows, centerValue, centerLabel }: { rows: DonutRow[]; centerValue: string; centerLabel: string }) {
+function Donut({
+  rows,
+  centerValue,
+  centerLabel,
+  onRowClick,
+}: {
+  rows: DonutRow[];
+  centerValue: string;
+  centerLabel: string;
+  onRowClick?: (label: string) => void;
+}) {
   const total = rows.reduce((a, r) => a + r.value, 0);
   const R = 52;
   const STROKE = 16;
@@ -539,9 +617,28 @@ function Donut({ rows, centerValue, centerLabel }: { rows: DonutRow[]; centerVal
           </Box>
         </Box>
       </Box>
-      <Stack spacing={1} sx={{ minWidth: 0, flexGrow: 1 }}>
+      <Stack spacing={onRowClick ? 0.25 : 1} sx={{ minWidth: 0, flexGrow: 1 }}>
         {rows.map((r) => (
-          <Stack key={r.label} direction="row" spacing={1} alignItems="center">
+          <Stack
+            key={r.label}
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            role={onRowClick ? 'button' : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            onClick={onRowClick ? () => onRowClick(r.label) : undefined}
+            onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(r.label); } } : undefined}
+            sx={
+              onRowClick
+                ? {
+                    cursor: 'pointer', borderRadius: 1.5, px: 0.75, py: 0.4, mx: -0.75,
+                    transition: 'background-color .12s',
+                    '&:hover': { bgcolor: DS.primarySoft },
+                    '&:focus-visible': { outline: `2px solid ${DS.primary}`, outlineOffset: 1 },
+                  }
+                : undefined
+            }
+          >
             <Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: r.color, flexShrink: 0 }} />
             <Typography variant="body2" sx={{ flexGrow: 1 }} noWrap>
               {r.label}

@@ -23,7 +23,7 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { api, ApiError } from '../lib/api';
 import { idleDias, idleNivel, type LastActivityMap } from '../lib/activity';
@@ -52,6 +52,9 @@ export default function KanbanPage() {
   const { can } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  // Vindo do Dashboard (Pipeline por estágio): coluna em foco + rolagem até ela
+  const etapaFoco = params.get('etapa') ? Number(params.get('etapa')) : null;
   const [blocked, setBlocked] = useState<BlockedInfo | null>(null);
   const [drag, setDrag] = useState<DragInfo | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -155,14 +158,23 @@ export default function KanbanPage() {
           {pageError}
         </Alert>
       )}
+      {etapaFoco != null && (
+        <Chip
+          label={`Em foco: ${columns.find((c) => c.stageId === etapaFoco)?.name ?? `etapa #${etapaFoco}`}`}
+          onDelete={() => setParams({}, { replace: true })}
+          sx={{ mb: 2, bgcolor: '#DDEFF4', color: '#2B4469', fontWeight: 600 }}
+        />
+      )}
 
       <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
         {columns.map((col, index) => {
           const next = columns[index + 1];
           const isTarget = dragOver === index && drag != null && index !== drag.fromIndex;
+          const emFoco = etapaFoco === col.stageId;
           return (
             <Box
               key={col.stageId}
+              ref={emFoco ? (el: HTMLDivElement | null) => el?.scrollIntoView({ inline: 'center', block: 'nearest' }) : undefined}
               onDragOver={(e) => {
                 if (!drag) return;
                 e.preventDefault();
@@ -177,8 +189,8 @@ export default function KanbanPage() {
                 minWidth: 276,
                 maxWidth: 276,
                 flexShrink: 0,
-                bgcolor: isTarget ? '#DDEFF4' : '#f0f2f5',
-                outline: isTarget ? '2px dashed #60CFE2' : 'none',
+                bgcolor: isTarget ? '#DDEFF4' : emFoco ? '#EAF1F7' : '#f0f2f5',
+                outline: isTarget ? '2px dashed #60CFE2' : emFoco ? '2px solid #60CFE2' : 'none',
                 outlineOffset: -2,
                 transition: 'background-color .12s',
                 borderRadius: 2.5,
